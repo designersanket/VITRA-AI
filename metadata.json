@@ -1,0 +1,9 @@
+{
+  "name": "VITRA - Your AI Twin",
+  "description": "Create a digital twin that thinks, speaks, and remembers like you using advanced AI.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera",
+    "identity-credentials-get"
+  ]
+}
