@@ -36,6 +36,7 @@ enum OperationType {
 }
 
 import { useToast } from "../context/ToastContext";
+import { API_BASE_URL } from "../constants";
 import { Volume2, VolumeX } from "lucide-react";
 
 export default function Chat() {
@@ -253,7 +254,7 @@ export default function Chat() {
   useEffect(() => {
     if (!user) return;
 
-    const socket = io(window.location.origin);
+    const socket = io(API_BASE_URL);
     socketRef.current = socket;
 
     socket.on("connect", () => {

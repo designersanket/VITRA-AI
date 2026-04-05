@@ -6,3 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
+frontend/.env.example
+VITRA/.env.example

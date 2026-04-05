@@ -40,19 +40,15 @@ export async function checkOllamaStatus(): Promise<boolean> {
 export async function verifyOllama(): Promise<'online' | 'offline' | 'error'> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-    
-    await fetch('http://localhost:11434/api/tags', { 
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const response = await fetch('/api/chat/local/models', {
       method: 'GET',
-      signal: controller.signal
+      signal: controller.signal,
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('vitra_token')}` }
     });
-    
     clearTimeout(timeoutId);
-    return 'online';
+    return response.ok ? 'online' : 'offline';
   } catch (error: any) {
-    if (error.name === 'AbortError') return 'offline';
-    // If it's a TypeError, it could be down OR CORS. 
-    // Usually, if it's down, it's a "Failed to fetch".
     return 'offline';
   }
 }

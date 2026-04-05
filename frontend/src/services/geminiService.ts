@@ -1,7 +1,7 @@
 import { GoogleGenAI, GenerateContentResponse, Type, Modality } from "@google/genai";
 
 // Accessing the API key as per baseline guidelines
-const apiKey = process.env.GEMINI_API_KEY || "";
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
 
 if (!apiKey) {
   console.error("VITRA: GEMINI_API_KEY is missing in the frontend. Please ensure it is set in the environment.");
@@ -147,7 +147,8 @@ export async function generateTwinResponseStream(
       metadata
     };
   } catch (error) {
-    console.error("Gemini Stream Error:", error);
+    console.error("Gemini Stream Error DETAILS:", error);
+    console.error("API Key present:", !!apiKey, "Key starts with:", apiKey?.substring(0, 10));
     throw error;
   }
 }

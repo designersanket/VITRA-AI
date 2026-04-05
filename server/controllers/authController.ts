@@ -32,24 +32,69 @@ const sendOTPEmail = async (email: string, otp: string) => {
     },
   });
 
-  const mailOptions = {
-    from: process.env.EMAIL_FROM || emailUser,
-    to: email,
-    subject: 'Your VITRA Password Reset OTP',
-    text: `Your OTP for password reset is: ${otp}. It will expire in 10 minutes.`,
-    html: `
-      <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #333;">Password Reset</h2>
-        <p>You requested a password reset for your VITRA account.</p>
-        <p>Your 6-digit OTP is:</p>
-        <div style="font-size: 24px; font-weight: bold; padding: 10px; background: #f4f4f4; border-radius: 5px; display: inline-block;">
-          ${otp}
+const mailOptions = {
+  from: process.env.EMAIL_FROM || emailUser,
+  to: email,
+  subject: 'Verify your identity - VITRA',
+  text: `Your OTP for password reset is: ${otp}. It will expire in 10 minutes.`,
+  html: `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background-color: #f6f8fa; padding: 40px 0;">
+      
+      <div style="max-width: 480px; margin: auto; text-align: center;">
+        
+        <!-- Logo -->
+        <div style="margin-bottom: 20px;">
+          <span style="font-size: 28px;">🤖</span>
         </div>
-        <p>This OTP will expire in 10 minutes.</p>
-        <p>If you did not request this, please ignore this email.</p>
+
+        <!-- Heading -->
+        <h2 style="font-weight: 400; color: #24292f;">
+          Please verify your identity, <strong>${email.split('@')[0]}</strong>
+        </h2>
+
+        <!-- Card -->
+        <div style="background: #ffffff; border: 1px solid #d0d7de; border-radius: 8px; padding: 24px; margin-top: 20px; text-align: left;">
+          
+          <p style="margin: 0 0 10px; color: #24292f;">
+            Here is your VITRA authentication code:
+          </p>
+
+          <!-- OTP -->
+          <div style="text-align: center; margin: 20px 0;">
+            <span style="
+              font-size: 26px;
+              letter-spacing: 6px;
+              font-weight: 500;
+              color: #24292f;
+            ">
+              ${otp}
+            </span>
+          </div>
+
+          <p style="font-size: 14px; color: #57606a;">
+            This code is valid for <strong>10 minutes</strong> and can only be used once.
+          </p>
+
+          <p style="font-size: 14px; color: #57606a;">
+            Please don’t share this code with anyone. VITRA will never ask for it via email or phone.
+          </p>
+
+          <p style="font-size: 14px; color: #57606a; margin-top: 20px;">
+            Thanks,<br/>
+            <strong>VITRA Team</strong>
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <p style="font-size: 12px; color: #57606a; margin-top: 20px;">
+          You're receiving this email because a verification request was made for your VITRA account.
+          If this wasn't you, you can safely ignore this email.
+        </p>
+
       </div>
-    `,
-  };
+    </div>
+  `,
+};
 
   try {
     await transporter.sendMail(mailOptions);
