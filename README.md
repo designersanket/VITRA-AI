@@ -1,7 +1,7 @@
 <div align="center">
   
 
-  # [VITRA AI] (https://vitra-ai.vercel.app)
+  # [VITRA AI](https://vitra-ai.vercel.app/)
 
   **A full-stack AI digital twin platform for conversations, behavior tracking, memory, and personalized insights.**
 
