@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Brain, Lock, AlertCircle, CheckCircle2, Loader2, ArrowLeft, Eye, EyeOff, Hash, Mail } from 'lucide-react';
+import { buildApiUrl } from '../constants';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ export default function ResetPassword() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/auth/reset-password', {
+      const response = await fetch(buildApiUrl('/api/auth/reset-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp, password }),

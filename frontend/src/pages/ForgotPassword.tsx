@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Brain, Mail, AlertCircle, CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
+import { buildApiUrl } from '../constants';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -17,7 +18,7 @@ export default function ForgotPassword() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/auth/forgot-password', {
+      const response = await fetch(buildApiUrl('/api/auth/forgot-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { buildApiUrl } from '../constants';
 
 interface CalendarEvent {
   id: string;
@@ -20,7 +21,7 @@ export default function CalendarWidget() {
   const fetchEvents = async () => {
     try {
       const token = localStorage.getItem('vitra_token');
-      const res = await fetch('/api/connect/google/calendar', {
+      const res = await fetch(buildApiUrl('/api/connect/google/calendar'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       

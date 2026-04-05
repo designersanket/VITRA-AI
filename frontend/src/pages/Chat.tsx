@@ -36,7 +36,7 @@ enum OperationType {
 }
 
 import { useToast } from "../context/ToastContext";
-import { API_BASE_URL } from "../constants";
+import { API_BASE_URL, buildApiUrl } from "../constants";
 import { Volume2, VolumeX } from "lucide-react";
 
 export default function Chat() {
@@ -292,7 +292,7 @@ export default function Chat() {
   useEffect(() => {
     const fetchTwin = async () => {
       try {
-        const response = await fetch("/api/twins", {
+        const response = await fetch(buildApiUrl("/api/twins"), {
           headers: { "Authorization": `Bearer ${localStorage.getItem("vitra_token")}` }
         });
         if (response.ok) {
@@ -329,7 +329,7 @@ export default function Chat() {
 
     const fetchSessions = async () => {
       try {
-        const response = await fetch("/api/sessions", {
+        const response = await fetch(buildApiUrl("/api/sessions"), {
           headers: { "Authorization": `Bearer ${localStorage.getItem("vitra_token")}` }
         });
         if (response.ok) {
@@ -360,7 +360,7 @@ export default function Chat() {
 
     const fetchMessages = async () => {
       try {
-        const response = await fetch(`/api/sessions/${currentSessionId}/messages`, {
+        const response = await fetch(buildApiUrl(`/api/sessions/${currentSessionId}/messages`), {
           headers: { "Authorization": `Bearer ${localStorage.getItem("vitra_token")}` }
         });
         if (response.ok) {
@@ -476,7 +476,7 @@ export default function Chat() {
   const createNewSession = async () => {
     if (!user) return;
     try {
-      const response = await fetch("/api/sessions", {
+      const response = await fetch(buildApiUrl("/api/sessions"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -504,7 +504,7 @@ export default function Chat() {
     }
 
     try {
-      const response = await fetch(`/api/sessions/${sessionId}`, {
+      const response = await fetch(buildApiUrl(`/api/sessions/${sessionId}`), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -525,7 +525,7 @@ export default function Chat() {
     if (!user) return;
 
     try {
-      const response = await fetch(`/api/sessions/${sessionId}`, {
+      const response = await fetch(buildApiUrl(`/api/sessions/${sessionId}`), {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${localStorage.getItem("vitra_token")}` }
       });
@@ -544,7 +544,7 @@ export default function Chat() {
   const handleTogglePin = async (messageId: string, currentPinned: boolean) => {
     if (!user || !currentSessionId) return;
     try {
-      const response = await fetch(`/api/sessions/${currentSessionId}/messages/${messageId}`, {
+      const response = await fetch(buildApiUrl(`/api/sessions/${currentSessionId}/messages/${messageId}`), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -563,7 +563,7 @@ export default function Chat() {
   const handleFeedback = async (messageId: string, type: "positive" | "negative") => {
     if (type === "positive") {
       try {
-        const response = await fetch(`/api/twins/feedback/${messageId}`, {
+        const response = await fetch(buildApiUrl(`/api/twins/feedback/${messageId}`), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -600,7 +600,7 @@ export default function Chat() {
       
       if (corePersonality) {
         try {
-          const response = await fetch(`/api/twins`, {
+          const response = await fetch(buildApiUrl(`/api/twins`), {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -633,7 +633,7 @@ export default function Chat() {
 
     const { messageId, type } = feedbackModal;
     try {
-      const response = await fetch(`/api/twins/feedback/${messageId}`, {
+      const response = await fetch(buildApiUrl(`/api/twins/feedback/${messageId}`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -679,7 +679,7 @@ export default function Chat() {
 
     try {
       // 1. Save user message
-      const userMsgResponse = await fetch(`/api/sessions/${currentSessionId}/messages`, {
+      const userMsgResponse = await fetch(buildApiUrl(`/api/sessions/${currentSessionId}/messages`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -731,7 +731,7 @@ export default function Chat() {
           });
 
           // After streaming, save to DB
-          const aiMsgResponse = await fetch(`/api/sessions/${currentSessionId}/messages`, {
+          const aiMsgResponse = await fetch(buildApiUrl(`/api/sessions/${currentSessionId}/messages`), {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -777,7 +777,7 @@ export default function Chat() {
           aiMood = aiResponse.metadata.mood;
 
           // 3. Save AI response
-          const aiMsgResponse = await fetch(`/api/sessions/${currentSessionId}/messages`, {
+          const aiMsgResponse = await fetch(buildApiUrl(`/api/sessions/${currentSessionId}/messages`), {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -821,7 +821,7 @@ export default function Chat() {
               updatePayload.memory = [...(twinProfile.memory || []), ...newMemories];
             }
 
-            await fetch("/api/twins", {
+            await fetch(buildApiUrl("/api/twins"), {
               method: "PATCH",
               headers: {
                 "Content-Type": "application/json",
@@ -853,7 +853,7 @@ export default function Chat() {
         }
       }
 
-      await fetch(`/api/sessions/${currentSessionId}`, {
+      await fetch(buildApiUrl(`/api/sessions/${currentSessionId}`), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -883,7 +883,7 @@ export default function Chat() {
         const facts = await extractImportantFacts(oldestMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'twin', text: m.text })));
         if (facts.length > 0) {
           try {
-            const response = await fetch(`/api/twins`, {
+            const response = await fetch(buildApiUrl(`/api/twins`), {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",

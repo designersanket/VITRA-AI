@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { buildApiUrl } from '../constants';
 
 interface User {
   id: string;
@@ -21,6 +22,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const parseApiResponse = async (response: Response) => {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    return await response.json();
+  }
+
+  const text = await response.text();
+
+  if (text.includes('Please wait while your application starts')) {
+    throw new Error('Server is still waking up. Please try again in a few seconds.');
+  }
+
+  if (text.startsWith('The page') || text.includes('<!DOCTYPE html') || text.includes('<html')) {
+    throw new Error('Frontend is reaching the wrong server for API requests. Set VITE_API_URL to your backend URL in production.');
+  }
+
+  throw new Error(text || `Server returned ${response.status} ${response.statusText}`);
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,9 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const checkAuth = async () => {
       // Check health/db status
       try {
-        const healthRes = await fetch('/api/health');
+        const healthRes = await fetch(buildApiUrl('/api/health'));
         if (healthRes.ok) {
-          const healthData = await healthRes.json();
+          const healthData = await parseApiResponse(healthRes);
           setDbConnected(healthData.dbConnected);
         }
       } catch (err) {
@@ -43,13 +64,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (token) {
         try {
-          const response = await fetch('/api/auth/me', {
+          const response = await fetch(buildApiUrl('/api/auth/me'), {
             headers: {
               'Authorization': `Bearer ${token}`
             }
           });
           if (response.ok) {
-            const userData = await response.json();
+            const userData = await parseApiResponse(response);
             
             setUser({
               ...userData,
@@ -73,13 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       console.log("Attempting login for:", email);
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(buildApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
 
-      const data = await response.json();
+      const data = await parseApiResponse(response);
       console.log("Login response:", data);
 
       if (!response.ok) {
@@ -105,24 +126,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (name: string, email: string, password: string) => {
     try {
       console.log("Attempting registration for:", email);
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch(buildApiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password })
       });
 
-      let data;
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        console.error("Non-JSON response received:", text);
-        if (text.includes("Please wait while your application starts")) {
-          throw new Error('Server is still warming up. Please try again in a few seconds.');
-        }
-        throw new Error(`Server returned non-JSON response: ${response.status} ${response.statusText}`);
-      }
+      const data = await parseApiResponse(response);
       
       console.log("Registration response:", data);
 
@@ -151,13 +161,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       console.log("Attempting Google login with token...");
-      const response = await fetch('/api/auth/google', {
+      const response = await fetch(buildApiUrl('/api/auth/google'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: googleToken })
       });
 
-      const data = await response.json();
+      const data = await parseApiResponse(response);
       console.log("Google login response:", data);
 
       if (!response.ok) {

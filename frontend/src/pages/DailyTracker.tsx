@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { ArrowLeft, Save, Moon, Book, Briefcase, Smile, Loader2, CheckCircle2, TrendingUp } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
+import { buildApiUrl } from "../constants";
 
 export default function DailyTracker() {
   const { user } = useAuth();
@@ -29,7 +30,7 @@ export default function DailyTracker() {
       try {
         const token = localStorage.getItem("vitra_token");
         const headers = { "Authorization": `Bearer ${token}` };
-        const res = await fetch(`/api/daily-data/${today}`, { headers });
+        const res = await fetch(buildApiUrl(`/api/daily-data/${today}`), { headers });
         if (res.ok) {
           const data = await res.json();
           setFormData({
@@ -78,7 +79,7 @@ export default function DailyTracker() {
         date: today
       };
 
-      const res = await fetch("/api/daily-data", {
+      const res = await fetch(buildApiUrl("/api/daily-data"), {
         method: "POST",
         headers,
         body: JSON.stringify(dataToSave)

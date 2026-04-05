@@ -12,6 +12,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { AnimatePresence } from "motion/react";
 import SpotifyPlayer from "../components/SpotifyPlayer";
 import CalendarWidget from "../components/CalendarWidget";
+import { buildApiUrl } from "../constants";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -55,7 +56,7 @@ export default function Dashboard() {
         const headers = { "Authorization": `Bearer ${token}` };
 
         // Fetch Twin Data
-        const twinRes = await fetch("/api/twins", { headers });
+        const twinRes = await fetch(buildApiUrl("/api/twins"), { headers });
         if (twinRes.ok) {
           const data = await twinRes.json();
           setTwinData(data);
@@ -67,12 +68,12 @@ export default function Dashboard() {
         }
         
         // Fetch Sessions to count messages
-        const sessionsRes = await fetch("/api/sessions", { headers });
+        const sessionsRes = await fetch(buildApiUrl("/api/sessions"), { headers });
         if (sessionsRes.ok) {
           const sessions = await sessionsRes.json();
           let totalMsgs = 0;
           for (const session of sessions) {
-            const msgsRes = await fetch(`/api/sessions/${session.id}/messages`, { headers });
+            const msgsRes = await fetch(buildApiUrl(`/api/sessions/${session.id}/messages`), { headers });
             if (msgsRes.ok) {
               const msgs = await msgsRes.json();
               totalMsgs += msgs.length;
@@ -83,14 +84,14 @@ export default function Dashboard() {
 
         // Fetch Today's Daily Data
         const today = new Date().toISOString().split('T')[0];
-        const dailyRes = await fetch(`/api/daily-data/${today}`, { headers });
+        const dailyRes = await fetch(buildApiUrl(`/api/daily-data/${today}`), { headers });
         if (dailyRes.ok) {
           const data = await dailyRes.json();
           setTodayData(data);
         }
 
         // Fetch Memory Data for Nudges
-        const memoryRes = await fetch(`/api/memory/${user.id}`, { headers });
+        const memoryRes = await fetch(buildApiUrl(`/api/memory/${user.id}`), { headers });
         if (memoryRes.ok) {
           const data = await memoryRes.json();
           setMemoryData(data);

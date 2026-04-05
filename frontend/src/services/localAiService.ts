@@ -1,4 +1,6 @@
 
+import { buildApiUrl } from "../constants";
+
 export interface LocalChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -41,7 +43,7 @@ export async function verifyOllama(): Promise<'online' | 'offline' | 'error'> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
-    const response = await fetch('/api/chat/local/models', {
+    const response = await fetch(buildApiUrl('/api/chat/local/models'), {
       method: 'GET',
       signal: controller.signal,
       headers: { 'Authorization': `Bearer ${localStorage.getItem('vitra_token')}` }
@@ -58,7 +60,7 @@ export async function verifyOllama(): Promise<'online' | 'offline' | 'error'> {
  */
 export async function getLocalModels(): Promise<any[]> {
   try {
-    const response = await fetch('/api/chat/local/models', {
+    const response = await fetch(buildApiUrl('/api/chat/local/models'), {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('vitra_token')}`
       }
@@ -88,7 +90,7 @@ export async function streamLocalChat(
   } = options;
 
   try {
-    const response = await fetch('/api/chat/local', {
+    const response = await fetch(buildApiUrl('/api/chat/local'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

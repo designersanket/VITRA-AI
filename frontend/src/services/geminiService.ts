@@ -1,4 +1,5 @@
 import { GoogleGenAI, GenerateContentResponse, Type, Modality } from "@google/genai";
+import { buildApiUrl } from "../constants";
 
 // Accessing the API key as per baseline guidelines
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
@@ -52,7 +53,7 @@ export async function generateTwinResponseStream(
     const ai = new GoogleGenAI({ apiKey });
     
     // Fetch centralized system prompt from backend
-    const promptResponse = await fetch(`/api/twins/system-prompt${sessionId ? `?sessionId=${sessionId}` : ''}`, {
+    const promptResponse = await fetch(buildApiUrl(`/api/twins/system-prompt${sessionId ? `?sessionId=${sessionId}` : ''}`), {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('vitra_token')}`
       }
@@ -163,7 +164,7 @@ export async function generateTwinResponse(
     const ai = new GoogleGenAI({ apiKey });
     
     // Fetch centralized system prompt from backend
-    const promptResponse = await fetch(`/api/twins/system-prompt${sessionId ? `?sessionId=${sessionId}` : ''}`, {
+    const promptResponse = await fetch(buildApiUrl(`/api/twins/system-prompt${sessionId ? `?sessionId=${sessionId}` : ''}`), {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('vitra_token')}`
       }

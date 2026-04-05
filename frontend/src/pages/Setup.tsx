@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { analyzeUserPhoto, generateDigitalAvatar, extractStructuredTraits } from "../services/geminiService";
 import { useToast } from "../context/ToastContext";
+import { buildApiUrl } from "../constants";
 
 export default function Setup() {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ export default function Setup() {
     const fetchTwin = async () => {
       try {
         const token = localStorage.getItem('vitra_token');
-        const response = await fetch('/api/twins', {
+        const response = await fetch(buildApiUrl('/api/twins'), {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -74,7 +75,7 @@ export default function Setup() {
           setGoals(data.goals || []);
           
           // Check connectors status
-          const userRes = await fetch('/api/auth/me', {
+          const userRes = await fetch(buildApiUrl('/api/auth/me'), {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (userRes.ok) {
@@ -130,7 +131,7 @@ export default function Setup() {
       }
 
       const token = localStorage.getItem('vitra_token');
-      const response = await fetch('/api/twins', {
+      const response = await fetch(buildApiUrl('/api/twins'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -288,7 +289,7 @@ export default function Setup() {
   const handleConnect = async (provider: 'google' | 'spotify') => {
     try {
       const token = localStorage.getItem('vitra_token');
-      const response = await fetch(`/api/connect/${provider}/url`, {
+      const response = await fetch(buildApiUrl(`/api/connect/${provider}/url`), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to get auth URL');

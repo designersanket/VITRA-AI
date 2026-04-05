@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Music, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { buildApiUrl } from '../constants';
 
 interface SpotifyTrack {
   item: {
@@ -25,7 +26,7 @@ export default function SpotifyPlayer() {
   const fetchStatus = async () => {
     try {
       const token = localStorage.getItem('vitra_token');
-      const res = await fetch('/api/connect/spotify/status', {
+      const res = await fetch(buildApiUrl('/api/connect/spotify/status'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -56,7 +57,7 @@ export default function SpotifyPlayer() {
     setIsActionLoading(true);
     try {
       const token = localStorage.getItem('vitra_token');
-      const res = await fetch(`/api/connect/spotify/control/${action}`, {
+      const res = await fetch(buildApiUrl(`/api/connect/spotify/control/${action}`), {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
       });

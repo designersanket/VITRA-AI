@@ -7,6 +7,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { predictMood, generateRecommendations, TwinProfile } from "../services/geminiService";
 import { useToast } from "../context/ToastContext";
 import { KnowledgeGraph } from "../components/KnowledgeGraph";
+import { buildApiUrl } from "../constants";
 
 export default function Insights() {
   const { user } = useAuth();
@@ -27,13 +28,13 @@ export default function Insights() {
         const headers = { "Authorization": `Bearer ${token}` };
 
         // Fetch full memory which includes computed insights from backend
-        const memoryRes = await fetch(`/api/memory/${user.id}`, { headers });
+        const memoryRes = await fetch(buildApiUrl(`/api/memory/${user.id}`), { headers });
         if (!memoryRes.ok) throw new Error("Failed to fetch memory data");
         
         const memory = await memoryRes.json();
         
         // Fetch twin profile for the knowledge graph
-        const twinRes = await fetch("/api/twins", { headers });
+        const twinRes = await fetch(buildApiUrl("/api/twins"), { headers });
         if (twinRes.ok) {
           const profile = await twinRes.json();
           setTwinProfile(profile);
