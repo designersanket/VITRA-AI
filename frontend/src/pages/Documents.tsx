@@ -62,15 +62,18 @@ export default function Documents() {
         headers,
         body: JSON.stringify({ title, content })
       });
-      if (!res.ok) throw new Error('Create failed');
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({}));
+        throw new Error(errorBody.message || 'Create failed');
+      }
       const created = await res.json();
       setDocs((prev) => [created, ...prev]);
       setTitle('');
       setContent('');
       showToast('Document saved.', 'success');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      showToast('Could not save document.', 'error');
+      showToast(error.message || 'Could not save document.', 'error');
     } finally {
       setLoading(false);
     }

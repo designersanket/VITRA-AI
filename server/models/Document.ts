@@ -14,9 +14,8 @@ const documentSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
-documentSchema.pre('save', function (next: mongoose.CallbackWithoutResultAndOptionalError) {
+documentSchema.pre('save', function () {
   this.updatedAt = new Date();
-  next();
 });
 
 export const Document = mongoose.model('Document', documentSchema);
