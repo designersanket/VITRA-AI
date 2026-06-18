@@ -1,0 +1,5 @@
+◇ injecting env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+◇ injecting env (13) from ..\.env.local // tip: ◈ secrets for agents [www.dotenvx.com]
+◇ injecting env (0) from ..\.env // tip: ◈ encrypted .env [www.dotenvx.com]
+VITRA Backend running on port 3000
+MongoDB Connected Successfully

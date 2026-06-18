@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Brain, Lock, AlertCircle, CheckCircle2, Loader2, ArrowLeft, Eye, EyeOff, Hash, Mail } from 'lucide-react';
+import SimpleLoader from '../components/SimpleLoader';
 import { buildApiUrl } from '../constants';
 
 export default function ResetPassword() {
@@ -193,7 +194,7 @@ export default function ResetPassword() {
                 disabled={isSubmitting}
                 className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-70"
               >
-                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Reset Password'}
+                {isSubmitting ? <SimpleLoader size={20} /> : 'Reset Password'}
               </button>
 
               <div className="text-center">

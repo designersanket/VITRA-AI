@@ -7,7 +7,10 @@ import {
   getSpotifyAuthUrl, 
   spotifyCallback, 
   getSpotifyStatus,
-  controlSpotify
+  controlSpotify,
+  getNotionAuthUrl,
+  notionCallback,
+  getNotionStatus
 } from '../controllers/connectorController';
 
 const router = express.Router();
@@ -22,5 +25,10 @@ router.get('/spotify/url', protect, getSpotifyAuthUrl);
 router.get('/spotify/callback', spotifyCallback);
 router.get('/spotify/status', protect, getSpotifyStatus);
 router.put('/spotify/control/:action', protect, controlSpotify);
+
+// Notion
+router.get('/notion/url', protect, getNotionAuthUrl);
+router.get('/notion/callback', notionCallback);
+router.get('/notion/status', protect, getNotionStatus);
 
 export default router;

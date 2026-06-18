@@ -15,11 +15,8 @@ export const protect = (req: any, res: Response, next: NextFunction) => {
       token = req.headers.authorization.split(' ')[1];
 
       // Verify token
-      const decoded = jwt.verify(token, JWT_SECRET);
-
-      // Add user from payload
-      req.user = decoded;
-
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      req.user = { id: decoded.id || decoded._id };
       next();
     } catch (error) {
       console.error('Auth middleware error:', error);

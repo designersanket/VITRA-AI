@@ -117,6 +117,7 @@ GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 VITE_GOOGLE_CLIENT_ID=your_google_client_id
 APP_URL=http://localhost:5173
+OAUTH_REDIRECT_BASE_URL=http://localhost:5173
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_app_password
 EMAIL_FROM="VITRA Support <your_email@gmail.com>"
@@ -131,6 +132,8 @@ VITE_API_URL=http://localhost:3000
 ```
 
 You can place that in `frontend/.env` or in your frontend deployment environment.
+
+The frontend Vite config reads the project root `.env.local`, so local `VITE_` variables can live alongside the backend variables in the root file.
 
 ### 4. Start the app
 ```bash
@@ -174,6 +177,7 @@ npm run start
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `APP_URL`
+- `OAUTH_REDIRECT_BASE_URL`
 - `EMAIL_SERVICE`
 - `EMAIL_USER`
 - `EMAIL_PASS`
@@ -208,6 +212,7 @@ JWT_SECRET=your_jwt_secret
 GEMINI_API_KEY=your_gemini_api_key
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
+OAUTH_REDIRECT_BASE_URL=https://vitra-backend.onrender.com
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 EMAIL_USER=your_email@gmail.com
@@ -222,10 +227,10 @@ EMAIL_FROM="VITRA Support <your_email@gmail.com>"
 - `https://vitra-ai.vercel.app`
 
 ### Authorized redirect URIs
-- `http://localhost:5173`
-- `http://localhost:5173/login`
-- `https://vitra-ai.vercel.app/login`
+- `http://localhost:5173/api/connect/google/callback`
 - `https://vitra-backend.onrender.com/api/connect/google/callback`
+
+Google Sign-In from `@react-oauth/google` checks the browser origin, so origin mismatch errors are fixed under **Authorized JavaScript origins**, not redirect URIs. Add every exact origin you open the frontend from, including scheme and port, for example `http://localhost:5173`.
 
 ## Notes
 - The frontend uses `VITE_API_URL` in production to reach the backend API.

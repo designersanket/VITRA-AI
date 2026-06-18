@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Send, Mic, Brain, ArrowLeft, Loader2, Plus, MessageSquare, Menu, X, User, Trash2, Sparkles, ThumbsUp, ThumbsDown, Edit2, Check, MicOff, Pin, PinOff, Smile, Frown, Zap, AlertCircle, HelpCircle, Settings, ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import LoadingAnimation from "../components/LoadingAnimation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -941,7 +942,7 @@ export default function Chat() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background text-text">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <LoadingAnimation label="Preparing your chat session..." />
       </div>
     );
   }

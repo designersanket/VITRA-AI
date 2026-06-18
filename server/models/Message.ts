@@ -11,6 +11,9 @@ export interface IMessage extends Document {
   feedbackReason?: string;
   isPinned: boolean;
   moodAtTime?: string;
+  imageUrl?: string;
+  docName?: string;
+  docText?: string;
 }
 
 const messageSchema = new Schema<IMessage>({
@@ -24,6 +27,9 @@ const messageSchema = new Schema<IMessage>({
   feedbackReason: { type: String },
   isPinned: { type: Boolean, default: false },
   moodAtTime: { type: String },
+  imageUrl: { type: String },
+  docName: { type: String },
+  docText: { type: String },
 });
 
 export const Message = mongoose.model<IMessage>('Message', messageSchema);

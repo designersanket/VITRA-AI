@@ -10,6 +10,9 @@ import Chat from "./pages/Chat";
 import Setup from "./pages/Setup";
 import DailyTracker from "./pages/DailyTracker";
 import Insights from "./pages/Insights";
+import Goals from "./pages/Goals";
+import Timeline from "./pages/Timeline";
+import Documents from "./pages/Documents";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -20,6 +23,7 @@ import { TutorialProvider } from "./context/TutorialContext";
 import { TutorialOverlay } from "./components/TutorialOverlay";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AlertCircle, Loader2 } from "lucide-react";
+import LoadingAnimation from './components/LoadingAnimation';
 
 function DatabaseWarning() {
   const { dbConnected } = useAuth();
@@ -42,7 +46,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <LoadingAnimation label="Loading session..." />
       </div>
     );
   }
@@ -74,6 +78,9 @@ export default function App() {
                 <Route path="/setup" element={<ProtectedRoute><Setup /></ProtectedRoute>} />
                 <Route path="/tracker" element={<ProtectedRoute><DailyTracker /></ProtectedRoute>} />
                 <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
+                <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
+                <Route path="/timeline" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
+                <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
               </Routes>
               <TutorialOverlay />
             </div>

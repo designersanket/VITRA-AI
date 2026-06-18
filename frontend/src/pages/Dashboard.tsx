@@ -12,6 +12,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { AnimatePresence } from "motion/react";
 import SpotifyPlayer from "../components/SpotifyPlayer";
 import CalendarWidget from "../components/CalendarWidget";
+import LoadingAnimation from "../components/LoadingAnimation";
 import { buildApiUrl } from "../constants";
 
 export default function Dashboard() {
@@ -147,7 +148,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#050505]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <LoadingAnimation label="Loading dashboard..." />
       </div>
     );
   }
@@ -357,6 +358,21 @@ export default function Dashboard() {
                 <Calendar className="text-secondary mb-3 group-hover:scale-110 transition-transform" size={24} />
                 <p className="font-bold text-sm">Daily Tracker</p>
                 <p className="text-[10px] text-white/40 mt-1">Log your day</p>
+              </Link>
+              <Link id="nav-goals" to="/goals" className="p-6 rounded-3xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all group">
+                <Target className="text-blue-400 mb-3 group-hover:scale-110 transition-transform" size={24} />
+                <p className="font-bold text-sm">Goals</p>
+                <p className="text-[10px] text-white/40 mt-1">Plan milestones</p>
+              </Link>
+              <Link id="nav-documents" to="/documents" className="p-6 rounded-3xl bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20 transition-all group">
+                <BookOpen className="text-violet-400 mb-3 group-hover:scale-110 transition-transform" size={24} />
+                <p className="font-bold text-sm">Documents</p>
+                <p className="text-[10px] text-white/40 mt-1">Upload knowledge</p>
+              </Link>
+              <Link id="nav-timeline" to="/timeline" className="p-6 rounded-3xl bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all group">
+                <BarChart3 className="text-amber-400 mb-3 group-hover:scale-110 transition-transform" size={24} />
+                <p className="font-bold text-sm">Timeline</p>
+                <p className="text-[10px] text-white/40 mt-1">View twin history</p>
               </Link>
               <Link id="nav-insights" to="/insights" className="p-6 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all group">
                 <BarChart3 className="text-emerald-400 mb-3 group-hover:scale-110 transition-transform" size={24} />

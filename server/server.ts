@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '../.env.local' });
-dotenv.config({ path: '../.env' });
+import path from 'path';
+dotenv.config({ path: path.resolve(process.cwd(), '../.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
 import express from 'express';
 import cors from 'cors';
@@ -13,6 +14,7 @@ import sessionRoutes from './routes/sessionRoutes';
 import dailyDataRoutes from './routes/dailyDataRoutes';
 import memoryRoutes from './routes/memoryRoutes';
 import connectorRoutes from './routes/connectorRoutes';
+import productivityRoutes from './routes/productivityRoutes';
 import mongoose from 'mongoose';
 import { connectDB } from './config/db';
 import { checkDbConnectionMiddleware } from './middleware/dbMiddleware';
@@ -36,6 +38,12 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+  // Log all requests
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    next();
+  });
+
   io.on('connection', (socket) => {
     socket.on('join_session', (sessionId) => socket.join(sessionId));
     socket.on('send_message', (data) => socket.to(data.sessionId).emit('receive_message', data));
@@ -53,6 +61,7 @@ async function startServer() {
   app.use('/api/daily-data', dailyDataRoutes);
   app.use('/api/memory', memoryRoutes);
   app.use('/api/connect', connectorRoutes);
+  app.use('/api/productivity', productivityRoutes);
 
   app.get('/api/chat/local/models', async (req, res) => {
     try {

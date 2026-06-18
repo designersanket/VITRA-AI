@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Music, Loader2, AlertCircle } from 'lucide-react';
+import SimpleLoader from '../components/SimpleLoader';
 import { motion, AnimatePresence } from 'motion/react';
 import { buildApiUrl } from '../constants';
 
@@ -83,7 +84,7 @@ export default function SpotifyPlayer() {
   if (loading && !status) {
     return (
       <div className="p-6 rounded-[32px] bg-white/[0.03] border border-white/5 flex items-center justify-center h-48">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <SimpleLoader size={20} className="text-primary" />
       </div>
     );
   }

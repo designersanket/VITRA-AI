@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ArrowLeft, Save, Moon, Book, Briefcase, Smile, Loader2, CheckCircle2, TrendingUp } from "lucide-react";
+import SimpleLoader from '../components/SimpleLoader';
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 import { buildApiUrl } from "../constants";
@@ -240,7 +241,7 @@ export default function DailyTracker() {
                     : "bg-primary text-white shadow-primary/20 hover:bg-primary/90"
                 }`}
               >
-                {loading ? <Loader2 className="animate-spin" /> : <Save />}
+                {loading ? <SimpleLoader /> : <Save />}
                 {loading ? "Saving..." : error ? "Try Again" : "Save Daily Log"}
               </button>
             </form>

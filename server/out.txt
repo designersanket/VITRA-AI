@@ -1,0 +1,7 @@
+◇ injecting env (0) from .env // tip: ⌘ enable debugging { debug: true }
+◇ injecting env (13) from ..\.env.local // tip: ⌘ suppress logs { quiet: true }
+◇ injecting env (0) from ..\.env // tip: ⌘ override existing { override: true }
+VITRA Backend running on port 3000
+MongoDB Connected Successfully
+
+c:\Users\sanke\Downloads\VITRA\server>

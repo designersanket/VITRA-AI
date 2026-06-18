@@ -1,5 +1,7 @@
 import { motion } from "motion/react";
 import { Save, User, MessageSquare, Brain, Plus, Trash2, Loader2, ArrowLeft, Camera, CameraOff, RefreshCw, Wand2, Sparkles, X, Target, Calendar as CalendarIcon, Music } from "lucide-react";
+import LoadingAnimation from "../components/LoadingAnimation";
+import SimpleLoader from '../components/SimpleLoader';
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -305,7 +307,7 @@ export default function Setup() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <LoadingAnimation label="Loading setup..." />
       </div>
     );
   }
@@ -456,7 +458,7 @@ export default function Setup() {
                     disabled={isAnalyzing}
                     className="w-full py-4 bg-gradient-to-r from-primary to-secondary text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
                   >
-                    {isAnalyzing ? <Loader2 className="animate-spin" /> : <Wand2 size={20} />}
+                    {isAnalyzing ? <SimpleLoader /> : <Wand2 size={20} />}
                     {isAnalyzing ? "Analyzing & Generating..." : "Generate Digital Twin"}
                   </button>
                 </div>
@@ -772,7 +774,7 @@ export default function Setup() {
               disabled={saving}
               className="bg-primary px-8 py-4 rounded-2xl font-bold flex items-center gap-2 hover:bg-primary/90 transition-all disabled:opacity-50"
             >
-              {saving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+              {saving ? <SimpleLoader /> : <Save size={20} />}
               {saving ? "Saving..." : "Save Configuration"}
             </button>
           </div>

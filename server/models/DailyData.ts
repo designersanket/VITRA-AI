@@ -8,6 +8,7 @@ const dailyDataSchema = new mongoose.Schema({
   workHours: { type: Number, required: true },
   sleepHours: { type: Number, required: true },
   notes: { type: String },
+  habitsCompleted: { type: [String], default: [] },
   timestamp: { type: Date, default: Date.now },
 });
 

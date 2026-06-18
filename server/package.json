@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx --env-file=../.env.local server.ts",
+    "dev": "tsx --env-file=C:/Users/sanke/Downloads/VITRA/.env.local server.ts",
     "start": "tsx server.ts"
   },
   "dependencies": {

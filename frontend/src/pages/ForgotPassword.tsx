@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Brain, Mail, AlertCircle, CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
+import SimpleLoader from '../components/SimpleLoader';
 import { buildApiUrl } from '../constants';
 
 export default function ForgotPassword() {
@@ -119,7 +120,7 @@ export default function ForgotPassword() {
                 disabled={isSubmitting}
                 className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-70"
               >
-                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Send OTP'}
+                {isSubmitting ? <SimpleLoader size={20} /> : 'Send OTP'}
               </button>
 
               <div className="text-center">

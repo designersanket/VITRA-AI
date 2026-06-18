@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Twin } from '../models/Twin';
+import { TwinSnapshot } from '../models/TwinSnapshot';
 import { User } from '../models/User';
 import { Message } from '../models/Message';
 import { getRealTimeContext } from '../services/connectorService';
@@ -42,6 +43,15 @@ export const createOrUpdateTwin = async (req: any, res: Response) => {
       updateData,
       { new: true, upsert: true }
     );
+
+    if (twin) {
+      await TwinSnapshot.create({
+        userId: req.user.id,
+        corePersonality: twin.corePersonality || '',
+        learnedTraits: twin.learnedTraits || {},
+        timestamp: new Date()
+      });
+    }
 
     res.json(twin);
   } catch (error) {

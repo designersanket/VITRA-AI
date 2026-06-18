@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ArrowLeft, Brain, TrendingUp, Moon, Briefcase, Book, Sparkles, AlertCircle, Loader2, Clock, Calendar, MessageSquare, Network } from "lucide-react";
+import LoadingAnimation from "../components/LoadingAnimation";
 import { Link } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
 import { predictMood, generateRecommendations, TwinProfile } from "../services/geminiService";
@@ -75,10 +76,7 @@ export default function Insights() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background text-text">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
-          <p className="text-text/60 animate-pulse">Analyzing behavioral patterns...</p>
-        </div>
+        <LoadingAnimation label="Analyzing behavioral patterns..." />
       </div>
     );
   }

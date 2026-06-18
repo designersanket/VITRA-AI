@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import { Brain, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import SimpleLoader from '../components/SimpleLoader';
 import { useToast } from '../context/ToastContext';
 
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
@@ -120,7 +121,7 @@ export default function Login() {
               disabled={isSubmitting}
               className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-70"
             >
-              {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Sign In'}
+              {isSubmitting ? <SimpleLoader size={20} /> : 'Sign In'}
             </button>
           </form>
 

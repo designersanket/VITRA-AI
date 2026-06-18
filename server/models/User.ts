@@ -18,6 +18,8 @@ const userSchema = new mongoose.Schema({
     refreshToken: String,
     expiryDate: Number,
   },
+  notionToken: { type: String },
+  notionDatabaseId: { type: String },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, AlertCircle, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import LoadingAnimation from '../components/LoadingAnimation';
 import { buildApiUrl } from '../constants';
 
 interface CalendarEvent {
@@ -51,7 +52,7 @@ export default function CalendarWidget() {
   if (loading && events.length === 0) {
     return (
       <div className="p-6 rounded-[32px] bg-white/[0.03] border border-white/5 flex items-center justify-center h-48">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <LoadingAnimation width={80} height={80} label="Loading calendar..." />
       </div>
     );
   }

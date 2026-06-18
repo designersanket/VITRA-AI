@@ -9,8 +9,8 @@ const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 
 const getRedirectUri = (req: Request, path: string) => {
-  const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
-  return `${appUrl}${path}`;
+  const redirectBaseUrl = process.env.OAUTH_REDIRECT_BASE_URL || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+  return `${redirectBaseUrl.replace(/\/+$/, '')}${path}`;
 };
 
 // --- Google Calendar ---
@@ -306,5 +306,89 @@ export const controlSpotify = async (req: any, res: Response) => {
       error: 'Failed to control Spotify',
       details: error.response?.data?.error?.message || error.message
     });
+  }
+};
+
+const NOTION_CLIENT_ID = process.env.NOTION_CLIENT_ID;
+const NOTION_CLIENT_SECRET = process.env.NOTION_CLIENT_SECRET;
+const NOTION_REDIRECT_URI = process.env.NOTION_REDIRECT_URI || `${process.env.APP_URL || 'http://localhost:3000'}/api/connect/notion/callback`;
+
+export const getNotionAuthUrl = (req: any, res: Response) => {
+  if (!NOTION_CLIENT_ID) {
+    return res.status(500).json({ error: 'Notion client ID is not configured.' });
+  }
+
+  const url = `https://api.notion.com/v1/oauth/authorize?${new URLSearchParams({
+    client_id: NOTION_CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: NOTION_REDIRECT_URI,
+    owner: 'user',
+    state: req.user.id
+  }).toString()}`;
+
+  res.json({ url });
+};
+
+export const notionCallback = async (req: any, res: Response) => {
+  const { code, state: userId } = req.query;
+  if (!code || !userId) {
+    return res.status(400).send('Missing code or state');
+  }
+
+  try {
+    const tokenRes = await axios.post('https://api.notion.com/v1/oauth/token', {
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: NOTION_REDIRECT_URI,
+    }, {
+      auth: {
+        username: NOTION_CLIENT_ID || '',
+        password: NOTION_CLIENT_SECRET || ''
+      },
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const { access_token } = tokenRes.data;
+    await User.findByIdAndUpdate(userId, {
+      notionToken: access_token
+    });
+
+    res.send(`
+      <html>
+        <body>
+          <script>
+            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', provider: 'notion' }, '*');
+            window.close();
+          </script>
+          <p>Authentication successful. You can close this window.</p>
+        </body>
+      </html>
+    `);
+  } catch (error: any) {
+    console.error('Notion OAuth Error:', error.response?.data || error.message);
+    res.status(500).send('Authentication failed');
+  }
+};
+
+export const getNotionStatus = async (req: any, res: Response) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || !user.notionToken) {
+      return res.status(401).json({ error: 'Notion not connected' });
+    }
+
+    const response = await axios.get('https://api.notion.com/v1/users/me', {
+      headers: {
+        Authorization: `Bearer ${user.notionToken}`,
+        'Notion-Version': '2022-06-28'
+      }
+    });
+
+    res.json({ connected: true, user: response.data });
+  } catch (error: any) {
+    console.error('Notion status error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to verify Notion connection' });
   }
 };

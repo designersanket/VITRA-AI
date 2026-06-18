@@ -9,7 +9,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'vitra_secret_key_2026';
 
 // Helper to generate JWT
 const generateToken = (userId: string) => {
-  return jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '30d' });
+  console.log('Generated token:', token);
+  return token;
 };
 
 // Helper to send OTP email
