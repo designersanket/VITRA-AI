@@ -201,6 +201,7 @@ Frontend environment variables:
 ```env
 VITE_API_URL=https://vitra-backend.onrender.com
 VITE_GOOGLE_CLIENT_ID=your_google_client_id
+VITE_GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ### Backend on Render

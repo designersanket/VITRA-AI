@@ -248,7 +248,8 @@ export default function Chat() {
 
   const handleApiError = (error: unknown, operation: string) => {
     console.error(`API Error (${operation}):`, error);
-    showToast(`Error: ${operation} failed.`, "error");
+    const message = error instanceof Error ? error.message : `${operation} failed.`;
+    showToast(`Error: ${message}`, "error");
   };
 
   // Socket.io Setup
