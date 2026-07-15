@@ -18,6 +18,7 @@ import productivityRoutes from './routes/productivityRoutes';
 import mongoose from 'mongoose';
 import { connectDB } from './config/db';
 import { checkDbConnectionMiddleware } from './middleware/dbMiddleware';
+import { protect } from './middleware/authMiddleware';
 
 async function startServer() {
   const app = express();
@@ -62,6 +63,104 @@ async function startServer() {
   app.use('/api/memory', memoryRoutes);
   app.use('/api/connect', connectorRoutes);
   app.use('/api/productivity', productivityRoutes);
+
+  // Gemini Chat Endpoint
+  app.post('/api/chat/gemini', async (req: any, res) => {
+    const { message, history, systemInstruction } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
+
+    try {
+      const payload = {
+        system_instruction: { parts: [{ text: systemInstruction || '' }] },
+        contents: [
+          ...(history || []).map((h: any) => ({ role: h.role, parts: [{ text: h.text }] })),
+          { role: 'user', parts: [{ text: message }] }
+        ],
+        generationConfig: { temperature: 0.9, maxOutputTokens: 2048 }
+      };
+
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+      );
+
+      const data = await geminiRes.json();
+      if (!geminiRes.ok) {
+        console.error('Gemini API error:', data);
+        return res.status(502).json({ error: data.error?.message || 'Gemini API error' });
+      }
+
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      res.json({ text });
+    } catch (error: any) {
+      console.error('Gemini endpoint error:', error);
+      res.status(500).json({ error: 'Gemini request failed' });
+    }
+  });
+
+  app.post('/api/chat/gemini', protect, async (req: any, res) => {
+    try {
+      const { message, history = [], systemInstruction } = req.body;
+      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the backend.' });
+      }
+
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Message is required.' });
+      }
+
+      const chatHistory = Array.isArray(history)
+        ? history
+            .filter((item: any) => item?.role && item?.text)
+            .map((item: any) => ({
+              role: item.role === 'model' ? 'model' : 'user',
+              parts: [{ text: String(item.text) }]
+            }))
+        : [];
+
+      while (chatHistory.length > 0 && chatHistory[0].role !== 'user') {
+        chatHistory.shift();
+      }
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: chatHistory.concat([{ role: 'user', parts: [{ text: message }] }]),
+          systemInstruction: systemInstruction
+            ? { parts: [{ text: String(systemInstruction) }] }
+            : undefined
+        })
+      });
+
+      const data: any = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Gemini backend error:', data);
+        return res.status(response.status).json({
+          error: data.error?.message || 'Gemini request failed.'
+        });
+      }
+
+      const text = data.candidates?.[0]?.content?.parts
+        ?.map((part: any) => part.text || '')
+        .join('')
+        .trim();
+
+      if (!text) {
+        return res.status(502).json({ error: 'Gemini returned an empty response.' });
+      }
+
+      res.json({ text });
+    } catch (error: any) {
+      console.error('Gemini chat error:', error);
+      res.status(500).json({ error: error.message || 'Failed to communicate with Gemini.' });
+    }
+  });
 
   app.get('/api/chat/local/models', async (req, res) => {
     try {

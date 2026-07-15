@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
+import ReactMarkdown from "react-markdown";
 import { Send, Mic, Brain, ArrowLeft, Loader2, Plus, MessageSquare, Menu, X, User, Trash2, Sparkles, ThumbsUp, ThumbsDown, Edit2, Check, MicOff, Pin, PinOff, Smile, Frown, Zap, AlertCircle, HelpCircle, Settings, ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import LoadingAnimation from "../components/LoadingAnimation";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -1573,9 +1574,15 @@ export default function Chat() {
                       <Pin size={10} fill="currentColor" />
                     </div>
                   )}
-                  <p className="leading-relaxed text-sm md:text-base">
-                    {highlightText(msg.text, searchTerm)}
-                  </p>
+                  {msg.sender === "twin" ? (
+                    <div className="prose-chat max-w-none text-sm md:text-base">
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="leading-relaxed text-sm md:text-base">
+                      {highlightText(msg.text, searchTerm)}
+                    </p>
+                  )}
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex items-center gap-2">
                       {msg.sender === "twin" && (
@@ -1743,7 +1750,7 @@ export default function Chat() {
                 setInput(e.target.value);
                 setWasLastInputVoice(false);
               }}
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder={isListening ? "Listening..." : "Talk to your twin..."}
               className="flex-1 bg-transparent outline-none p-2 text-sm md:text-base"
             />

@@ -50,8 +50,6 @@ export async function generateTwinResponseStream(
   sessionId?: string
 ): Promise<TwinResponse> {
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    
     // Fetch centralized system prompt from backend
     const promptResponse = await fetch(buildApiUrl(`/api/twins/system-prompt${sessionId ? `?sessionId=${sessionId}` : ''}`), {
       headers: {
@@ -65,59 +63,30 @@ export async function generateTwinResponseStream(
     
     const { systemInstruction } = await promptResponse.json();
 
-    let chatHistory = history.map(h => ({
-      role: h.role,
-      parts: [{ text: h.text }]
-    }));
-
-    if (chatHistory.length > 0 && chatHistory[0].role === "model") {
-      chatHistory = chatHistory.slice(1);
-    }
-
-    const chat = ai.chats.create({
-      model: "gemini-2.5-flash",
-      config: {
-        systemInstruction,
+    const response = await fetch(buildApiUrl('/api/chat/gemini'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('vitra_token')}`
       },
-      history: chatHistory
+      body: JSON.stringify({
+        message,
+        history,
+        systemInstruction
+      })
     });
 
-    const result = await chat.sendMessageStream({ message });
-    let fullText = "";
-    let conversationalText = "";
-    let foundMetadata = false;
-
-    for await (const chunk of result) {
-      const chunkText = chunk.text;
-      fullText += chunkText;
-      
-      if (!foundMetadata) {
-        const separatorIndex = fullText.indexOf('---METADATA---');
-        if (separatorIndex === -1) {
-          // Check if the end of fullText might be a partial separator
-          const partialSeparator = '---METADATA---';
-          let safeLength = fullText.length;
-          
-          for (let i = 1; i < partialSeparator.length; i++) {
-            if (fullText.endsWith(partialSeparator.slice(0, i))) {
-              safeLength = fullText.length - i;
-              break;
-            }
-          }
-          
-          conversationalText = fullText.slice(0, safeLength);
-          onChunk(conversationalText.trim());
-        } else {
-          foundMetadata = true;
-          conversationalText = fullText.slice(0, separatorIndex).trim();
-          onChunk(conversationalText);
-        }
-      }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Gemini request failed');
     }
+
+    const fullText = data.text || "";
 
     // Parse final metadata
     const parts = fullText.split('---METADATA---');
-    conversationalText = parts[0].trim();
+    const conversationalText = parts[0].trim();
+    onChunk(conversationalText);
     let metadata = { mood: "Neutral", intent: "Unknown", detected_pattern: "None", recommended_action: "None" };
 
     if (parts.length > 1) {

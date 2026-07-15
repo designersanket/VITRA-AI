@@ -14,6 +14,7 @@ export default function Setup() {
   const { showToast } = useToast();
   const { user } = useAuth();
   const [name, setName] = useState("");
+  const [corePersonality, setCorePersonality] = useState("");
   const [personality, setPersonality] = useState("Professional");
   const [tone, setTone] = useState("Friendly");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -68,6 +69,7 @@ export default function Setup() {
         if (response.ok) {
           const data = await response.json();
           setName(data.name || "");
+          setCorePersonality(data.corePersonality || "");
           setPersonality(data.personality || "Professional");
           setTone(data.tone || "Friendly");
           setAvatarUrl(data.avatarUrl || "");
@@ -141,6 +143,7 @@ export default function Setup() {
         },
         body: JSON.stringify({
           name: name.trim(),
+          corePersonality: corePersonality.trim(),
           personality,
           tone,
           avatarUrl,
@@ -519,6 +522,17 @@ export default function Setup() {
                     placeholder="e.g. Digital Alex"
                     className="w-full p-4 rounded-xl bg-background border border-white/10 focus:border-primary outline-none transition-all"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text/60 mb-2">Core Personality / System Prompt</label>
+                  <textarea
+                    value={corePersonality}
+                    onChange={(e) => setCorePersonality(e.target.value)}
+                    placeholder="Paste your twin's full system prompt or core personality description here..."
+                    rows={8}
+                    className="w-full p-4 rounded-xl bg-background border border-white/10 focus:border-primary outline-none transition-all resize-none text-sm font-mono"
+                  />
+                  <p className="text-xs text-text/40 mt-1">This becomes the foundation of how your twin thinks and responds.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text/60 mb-2">Avatar URL (Optional)</label>
