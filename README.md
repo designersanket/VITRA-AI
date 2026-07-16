@@ -14,7 +14,7 @@ VITRA AI is a full-stack application that lets a user create a personal AI digit
 The project includes:
 - A `React + Vite + TypeScript` frontend
 - An `Express + TypeScript + MongoDB` backend
-- Gemini-powered AI features for chat, recommendations, summaries, and profile enrichment
+- Groq-powered AI features for chat, recommendations, summaries, and profile enrichment
 - Google authentication and connector flows
 - Spotify and Google Calendar integrations
 
@@ -31,13 +31,12 @@ The project includes:
 ## Live Links
 - Frontend: `https://vitra-ai.vercel.app`
 - Backend: `https://vitra-backend.onrender.com`
-- AI Studio: `https://ai.studio/apps/d7637624-97e4-4c0f-86b9-82e608e5d698`
 
 ## Tech Stack
 - Frontend: `React 19`, `Vite`, `TypeScript`, `Tailwind CSS`, `React Router`
 - Backend: `Node.js`, `Express`, `TypeScript`, `Socket.IO`
 - Database: `MongoDB`, `Mongoose`
-- AI: `Google Gemini`
+- AI: `Groq`
 - Auth and Integrations: `Google OAuth`, `Spotify API`, `Nodemailer`
 - Deployment: `Vercel` for frontend, `Render` for backend
 
@@ -49,7 +48,7 @@ VITRA/
 │  │  ├─ components/        # Reusable UI pieces like calendar, Spotify, tutorial, error boundary
 │  │  ├─ context/           # Auth, tutorial, and toast providers
 │  │  ├─ pages/             # Landing, login, register, setup, chat, dashboard, insights, tracker
-│  │  ├─ services/          # Gemini and local AI service clients
+│  │  ├─ services/          # Hosted and local AI service clients
 │  │  ├─ App.tsx            # App routes and providers
 │  │  ├─ constants.ts       # Frontend environment-backed constants
 │  │  └─ main.tsx           # React entry point
@@ -112,7 +111,8 @@ Example:
 ```env
 MONGODB_URI=your_mongodb_uri
 JWT_SECRET=your_jwt_secret
-GEMINI_API_KEY=your_gemini_api_key
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.1-8b-instant
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 VITE_GOOGLE_CLIENT_ID=your_google_client_id
@@ -173,7 +173,8 @@ npm run start
 ### Root / Backend
 - `MONGODB_URI`
 - `JWT_SECRET`
-- `GEMINI_API_KEY`
+- `GROQ_API_KEY`
+- `GROQ_MODEL` optional, defaults to `llama-3.1-8b-instant`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `APP_URL`
@@ -188,7 +189,6 @@ npm run start
 ### Frontend
 - `VITE_API_URL`
 - `VITE_GOOGLE_CLIENT_ID`
-- `VITE_GEMINI_API_KEY` if you are using Gemini directly from the frontend
 
 ## Production Deployment
 ### Frontend on Vercel
@@ -201,7 +201,6 @@ Frontend environment variables:
 ```env
 VITE_API_URL=https://vitra-backend.onrender.com
 VITE_GOOGLE_CLIENT_ID=your_google_client_id
-VITE_GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ### Backend on Render
@@ -210,7 +209,8 @@ Backend environment variables:
 APP_URL=https://vitra-ai.vercel.app
 MONGODB_URI=your_mongodb_uri
 JWT_SECRET=your_jwt_secret
-GEMINI_API_KEY=your_gemini_api_key
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.1-8b-instant
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 OAUTH_REDIRECT_BASE_URL=https://vitra-backend.onrender.com

@@ -1,13 +1,33 @@
-import { GoogleGenAI, GenerateContentResponse, Type, Modality } from "@google/genai";
 import { buildApiUrl } from "../constants";
 
-// Accessing the API key as per baseline guidelines
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+async function generateGroqText(
+  message: string,
+  options: {
+    history?: { role: "user" | "model" | "assistant"; text: string }[];
+    systemInstruction?: string;
+    responseFormat?: "json_object";
+  } = {}
+): Promise<string> {
+  const response = await fetch(buildApiUrl('/api/chat/groq'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('vitra_token')}`
+    },
+    body: JSON.stringify({
+      message,
+      history: options.history || [],
+      systemInstruction: options.systemInstruction,
+      responseFormat: options.responseFormat
+    })
+  });
 
-if (!apiKey) {
-  console.error("VITRA: GEMINI_API_KEY is missing in the frontend. Please ensure it is set in the environment.");
-} else if (apiKey.includes("TODO_KEYHERE") || apiKey.includes("YOUR_API_KEY")) {
-  console.error("VITRA: GEMINI_API_KEY is a placeholder. Please set a valid API key in AI Studio.");
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.message || 'Groq request failed');
+  }
+
+  return data.text || "";
 }
 
 export interface TwinProfile {
@@ -63,7 +83,7 @@ export async function generateTwinResponseStream(
     
     const { systemInstruction } = await promptResponse.json();
 
-    const response = await fetch(buildApiUrl('/api/chat/gemini'), {
+    const response = await fetch(buildApiUrl('/api/chat/groq'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,7 +98,7 @@ export async function generateTwinResponseStream(
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || data.message || 'Gemini request failed');
+      throw new Error(data.error || data.message || 'Groq request failed');
     }
 
     const fullText = data.text || "";
@@ -117,8 +137,7 @@ export async function generateTwinResponseStream(
       metadata
     };
   } catch (error) {
-    console.error("Gemini Stream Error DETAILS:", error);
-    console.error("API Key present:", !!apiKey, "Key starts with:", apiKey?.substring(0, 10));
+    console.error("Groq Stream Error DETAILS:", error);
     throw error;
   }
 }
@@ -130,8 +149,6 @@ export async function generateTwinResponse(
   sessionId?: string
 ): Promise<TwinResponse> {
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    
     // Fetch centralized system prompt from backend
     const promptResponse = await fetch(buildApiUrl(`/api/twins/system-prompt${sessionId ? `?sessionId=${sessionId}` : ''}`), {
       headers: {
@@ -145,27 +162,7 @@ export async function generateTwinResponse(
     
     const { systemInstruction } = await promptResponse.json();
 
-    // Filter history to ensure it starts with a user message if it's not empty
-    let chatHistory = history.map(h => ({
-      role: h.role,
-      parts: [{ text: h.text }]
-    }));
-
-    // Gemini API requires history to start with user and alternate
-    // If first message is model, remove it
-    if (chatHistory.length > 0 && chatHistory[0].role === "model") {
-      chatHistory = chatHistory.slice(1);
-    }
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: chatHistory.concat([{ role: "user", parts: [{ text: message }] }]),
-      config: {
-        systemInstruction,
-      }
-    });
-
-    const fullText = response.text || "";
+    const fullText = await generateGroqText(message, { history, systemInstruction });
     const parts = fullText.split("---METADATA---");
     const text = parts[0].trim();
     let metadata = {
@@ -200,7 +197,7 @@ export async function generateTwinResponse(
 
     return { text, metadata };
   } catch (error) {
-    console.error("Gemini Chat Error:", error);
+    console.error("Groq Chat Error:", error);
     return {
       text: "I'm having trouble thinking right now. Let's try again in a moment.",
       metadata: {
@@ -215,7 +212,6 @@ export async function generateTwinResponse(
 
 export async function predictMood(history: any[]): Promise<{ mood: string, explanation: string }> {
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const prompt = `
       Analyze the following historical mood and behavior data to predict the user's next mood.
       Data: ${JSON.stringify(history)}
@@ -227,22 +223,16 @@ export async function predictMood(history: any[]): Promise<{ mood: string, expla
       }
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-    });
-    
-    return JSON.parse(response.text || "{}");
+    const text = await generateGroqText(prompt, { responseFormat: "json_object" });
+    return JSON.parse(text || "{}");
   } catch (error) {
-    console.error("Gemini Mood Prediction Error:", error);
+    console.error("Groq Mood Prediction Error:", error);
     return { mood: "Neutral", explanation: "Insufficient data for prediction." };
   }
 }
 
 export async function generateRecommendations(data: any[]): Promise<string[]> {
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const prompt = `
       Based on the following behavioral data (sleep, work, study, mood), provide 3-5 personalized recommendations to improve the user's well-being and productivity.
       Data: ${JSON.stringify(data)}
@@ -250,24 +240,18 @@ export async function generateRecommendations(data: any[]): Promise<string[]> {
       Return a JSON array of strings.
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-    });
-    
-    return JSON.parse(response.text || "[]");
+    const text = await generateGroqText(prompt);
+    return JSON.parse(text || "[]");
   } catch (error) {
-    console.error("Gemini Recommendation Error:", error);
+    console.error("Groq Recommendation Error:", error);
     return ["Maintain a consistent sleep schedule.", "Take regular breaks during work.", "Stay hydrated."];
   }
 }
 
 export async function analyzeUserPhoto(base64Image: string): Promise<{ personality: string, tone: string, traits: string[] }> {
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const prompt = `
-      Analyze this user's photo and infer their likely personality, preferred tone of voice for a digital twin, and 3-5 behavioral traits.
+      Infer a friendly default personality, preferred tone of voice for a digital twin, and 3-5 behavioral traits.
       Be positive, insightful, and empathetic.
       
       Return a JSON object with:
@@ -278,117 +262,40 @@ export async function analyzeUserPhoto(base64Image: string): Promise<{ personali
       }
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        { text: prompt },
-        { inlineData: { data: base64Image.includes(',') ? base64Image.split(',')[1] : base64Image, mimeType: "image/jpeg" } }
-      ],
-      config: { responseMimeType: "application/json" }
-    });
-    
-    return JSON.parse(response.text || "{}");
+    const text = await generateGroqText(prompt, { responseFormat: "json_object" });
+    return JSON.parse(text || "{}");
   } catch (error) {
-    console.error("Gemini Photo Analysis Error:", error);
+    console.error("Groq Photo Analysis Error:", error);
     return { personality: "Friendly and approachable", tone: "Warm and helpful", traits: ["Empathetic", "Observant", "Calm"] };
   }
 }
 
 export async function generateDigitalAvatar(description: string, personality?: string, tone?: string, traits?: string[]): Promise<string> {
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    let prompt = `A high-quality, stylized digital 3D avatar portrait of a person.`;
-    
-    if (traits && traits.length > 0) {
-      prompt += ` The character has these behavioral traits: ${traits.join(", ")}.`;
-    }
-    
-    if (personality && tone) {
-      prompt += ` They have a ${personality} personality and a ${tone} tone. The avatar's expression, attire, and background should reflect this vibe.`;
-    }
-
-    if (description) {
-      prompt += ` Additional characteristics: ${description}.`;
-    }
-
-    prompt += ` The style should be modern, clean, and professional, like a high-end digital twin or metaverse character. Neutral but atmospheric background.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation",
-      contents: [{ text: prompt }],
-      config: {
-        imageConfig: {
-          aspectRatio: "1:1",
-          imageSize: "1K"
-        }
-      }
-    });
-    
-    if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
-      }
-    }
-    return "";
-  } catch (error) {
-    console.error("Gemini Avatar Generation Error:", error);
-    return "";
-  }
+  console.warn("Avatar generation is unavailable after switching from Gemini to Groq chat completions.", {
+    description,
+    personality,
+    tone,
+    traits
+  });
+  return "";
 }
 
 export async function generateChatTitle(messages: { role: string, text: string }[]): Promise<string> {
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const context = messages.map(m => `${m.role === 'user' ? 'User' : 'Twin'}: ${m.text}`).join("\n");
     const prompt = `Generate a very concise (2-4 words) and relevant title for a chat conversation based on this initial exchange:\n\n${context}\n\nDo not use quotes or punctuation. Just the title.`;
     
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-    
-    return response.text?.trim() || "New Conversation";
+    const text = await generateGroqText(prompt);
+    return text.trim() || "New Conversation";
   } catch (error) {
-    console.error("Gemini Title Generation Error:", error);
+    console.error("Groq Title Generation Error:", error);
     return "New Conversation";
   }
 }
 
 export async function generateSpeech(text: string, voice: string = "Kore"): Promise<string> {
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    
-    // Sanitize text: remove markdown and extra whitespace
-    const sanitizedText = text
-      .replace(/(\*\*|__)(.*?)\1/g, '$2') // Remove bold
-      .replace(/(\*|_)(.*?)\1/g, '$2')    // Remove italic
-      .replace(/`{1,3}.*?`{1,3}/gs, '')    // Remove code blocks
-      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links
-      .replace(/[#*>-]/g, '')             // Remove list/header markers
-      .trim();
-
-    if (!sanitizedText) return "";
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Say: ${sanitizedText}` }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voice as any },
-          },
-        },
-      },
-    });
-
-    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || "";
-  } catch (error) {
-    console.error("Gemini Speech Generation Error:", error);
-    return "";
-  }
+  console.warn("Speech generation is unavailable after switching from Gemini TTS to Groq chat completions.", { text, voice });
+  return "";
 }
 
 export async function generateChatSuggestions(
@@ -396,7 +303,6 @@ export async function generateChatSuggestions(
   profile: TwinProfile
 ): Promise<string[]> {
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const context = history.slice(-5).map(m => `${m.role === 'user' ? 'User' : 'Twin'}: ${m.text}`).join("\n");
     const prompt = `
       Based on the following conversation history and the user's digital twin profile, generate 3 short, conversational, and relevant "quick reply" suggestions for the user to continue the conversation.
@@ -412,22 +318,16 @@ export async function generateChatSuggestions(
       Return a JSON array of 3 strings. Each suggestion should be under 10 words.
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-    });
-    
-    return JSON.parse(response.text || "[]");
+    const text = await generateGroqText(prompt);
+    return JSON.parse(text || "[]");
   } catch (error) {
-    console.error("Gemini Suggestions Error:", error);
+    console.error("Groq Suggestions Error:", error);
     return [];
   }
 }
 
 export async function pruneTwinMemory(profile: TwinProfile): Promise<{ corePersonality: string }> {
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const traits = profile.learnedTraits || {};
     const prompt = `
       Summarize the following learned traits, strengths, and weaknesses into a single, concise "Core Personality" block (max 100 words). 
@@ -442,13 +342,8 @@ export async function pruneTwinMemory(profile: TwinProfile): Promise<{ corePerso
       Return a JSON object with a "corePersonality" field.
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-    });
-    
-    return JSON.parse(response.text || "{}");
+    const text = await generateGroqText(prompt, { responseFormat: "json_object" });
+    return JSON.parse(text || "{}");
   } catch (error) {
     console.error("Memory Pruning Error:", error);
     return { corePersonality: profile.corePersonality || "" };
@@ -457,7 +352,6 @@ export async function pruneTwinMemory(profile: TwinProfile): Promise<{ corePerso
 
 export async function extractImportantFacts(messages: { role: string, text: string }[]): Promise<string[]> {
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const context = messages.map(m => `${m.role === 'user' ? 'User' : 'Twin'}: ${m.text}`).join("\n");
     const prompt = `
       Extract any "Important Facts" about the user from the following conversation snippet. 
@@ -469,13 +363,8 @@ export async function extractImportantFacts(messages: { role: string, text: stri
       Return a JSON array of strings. If no important facts are found, return an empty array [].
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-    });
-    
-    return JSON.parse(response.text || "[]");
+    const text = await generateGroqText(prompt);
+    return JSON.parse(text || "[]");
   } catch (error) {
     console.error("Fact Extraction Error:", error);
     return [];
@@ -484,7 +373,6 @@ export async function extractImportantFacts(messages: { role: string, text: stri
 
 export async function extractStructuredTraits(knowledge: string[]): Promise<{ coreKnowledge: string[], strengths: string[], weaknesses: string[], primaryGoal: string }> {
   try {
-    const ai = new GoogleGenAI({ apiKey });
     // Limit input length to avoid token limits
     const input = knowledge.join("\n").slice(0, 5000);
     const prompt = `
@@ -523,19 +411,11 @@ export async function extractStructuredTraits(knowledge: string[]): Promise<{ co
         "primaryGoal": ""
       }
 
-      IMPORTANT:
-      - At the END of your response, you MUST include this exact token:
-      <END_OF_RESPONSE>
+      Return ONLY valid JSON. Do not include markdown, code fences, or any extra text.
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-    });
-    
-    const rawText = response.text || "";
-    const cleanJson = rawText.replace(/<END_OF_RESPONSE>$/, "").trim();
+    const rawText = await generateGroqText(prompt, { responseFormat: "json_object" });
+    const cleanJson = rawText.trim();
     
     return JSON.parse(cleanJson || "{\"coreKnowledge\": [], \"strengths\": [], \"weaknesses\": [], \"primaryGoal\": \"\"}");
   } catch (error) {

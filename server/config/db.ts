@@ -17,7 +17,7 @@ export const connectDB = async () => {
     console.error('MongoDB Connection Error:', error);
     if (error instanceof Error && error.name === 'MongooseServerSelectionError') {
       console.error('CRITICAL: Could not connect to any servers in your MongoDB Atlas cluster.');
-      console.error('This is usually because the AI Studio environment IP is NOT whitelisted.');
+      console.error('This is usually because the deployment environment IP is NOT whitelisted.');
       console.error('FIX: In MongoDB Atlas, go to "Network Access" and add "0.0.0.0/0" (Allow Access from Anywhere) for development.');
     }
     console.error('The server will continue to run, but database operations will fail until a valid MONGODB_URI is provided.');

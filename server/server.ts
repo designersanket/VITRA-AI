@@ -64,102 +64,73 @@ async function startServer() {
   app.use('/api/connect', connectorRoutes);
   app.use('/api/productivity', productivityRoutes);
 
-  // Gemini Chat Endpoint
-  app.post('/api/chat/gemini', async (req: any, res) => {
-    const { message, history, systemInstruction } = req.body;
-    if (!message) return res.status(400).json({ error: 'Message is required' });
-
-    const geminiApiKey = process.env.GEMINI_API_KEY;
-    if (!geminiApiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
-
+  app.post('/api/chat/groq', protect, async (req: any, res) => {
     try {
-      const payload = {
-        system_instruction: { parts: [{ text: systemInstruction || '' }] },
-        contents: [
-          ...(history || []).map((h: any) => ({ role: h.role, parts: [{ text: h.text }] })),
-          { role: 'user', parts: [{ text: message }] }
-        ],
-        generationConfig: { temperature: 0.9, maxOutputTokens: 2048 }
-      };
-
-      const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
-      );
-
-      const data = await geminiRes.json();
-      if (!geminiRes.ok) {
-        console.error('Gemini API error:', data);
-        return res.status(502).json({ error: data.error?.message || 'Gemini API error' });
-      }
-
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      res.json({ text });
-    } catch (error: any) {
-      console.error('Gemini endpoint error:', error);
-      res.status(500).json({ error: 'Gemini request failed' });
-    }
-  });
-
-  app.post('/api/chat/gemini', protect, async (req: any, res) => {
-    try {
-      const { message, history = [], systemInstruction } = req.body;
-      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+      const { message, history = [], systemInstruction, responseFormat } = req.body;
+      const apiKey = process.env.GROQ_API_KEY;
+      const model = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 
       if (!apiKey) {
-        return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the backend.' });
+        return res.status(500).json({ error: 'GROQ_API_KEY is not configured on the backend.' });
       }
 
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: 'Message is required.' });
       }
 
-      const chatHistory = Array.isArray(history)
+      const messages = Array.isArray(history)
         ? history
             .filter((item: any) => item?.role && item?.text)
             .map((item: any) => ({
-              role: item.role === 'model' ? 'model' : 'user',
-              parts: [{ text: String(item.text) }]
+              role: item.role === 'model' || item.role === 'assistant' ? 'assistant' : 'user',
+              content: String(item.text)
             }))
         : [];
 
-      while (chatHistory.length > 0 && chatHistory[0].role !== 'user') {
-        chatHistory.shift();
+      if (systemInstruction) {
+        messages.unshift({ role: 'system', content: String(systemInstruction) });
       }
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      messages.push({ role: 'user', content: message });
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
         body: JSON.stringify({
-          contents: chatHistory.concat([{ role: 'user', parts: [{ text: message }] }]),
-          systemInstruction: systemInstruction
-            ? { parts: [{ text: String(systemInstruction) }] }
-            : undefined
+          model,
+          messages,
+          temperature: 0.9,
+          max_tokens: 2048,
+          response_format: responseFormat === 'json_object' ? { type: 'json_object' } : undefined
         })
       });
 
       const data: any = await response.json().catch(() => ({}));
       if (!response.ok) {
-        console.error('Gemini backend error:', data);
+        console.error('Groq backend error:', data);
         return res.status(response.status).json({
-          error: data.error?.message || 'Gemini request failed.'
+          error: data.error?.message || 'Groq request failed.'
         });
       }
 
-      const text = data.candidates?.[0]?.content?.parts
-        ?.map((part: any) => part.text || '')
-        .join('')
-        .trim();
+      const text = data.choices?.[0]?.message?.content?.trim();
 
       if (!text) {
-        return res.status(502).json({ error: 'Gemini returned an empty response.' });
+        return res.status(502).json({ error: 'Groq returned an empty response.' });
       }
 
       res.json({ text });
     } catch (error: any) {
-      console.error('Gemini chat error:', error);
-      res.status(500).json({ error: error.message || 'Failed to communicate with Gemini.' });
+      console.error('Groq chat error:', error);
+      res.status(500).json({ error: error.message || 'Failed to communicate with Groq.' });
     }
+  });
+
+  app.post('/api/chat/gemini', protect, (req: any, res) => {
+    res.status(410).json({ error: 'Gemini chat has been replaced by /api/chat/groq.' });
   });
 
   app.get('/api/chat/local/models', async (req, res) => {

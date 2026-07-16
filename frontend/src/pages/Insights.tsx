@@ -54,7 +54,7 @@ export default function Insights() {
         });
 
         if (memory.dailyLogs.length > 0) {
-          // AI Analysis (keeping Gemini for deeper predictions)
+          // AI analysis for deeper predictions
           const [pred, recs] = await Promise.all([
             predictMood(memory.dailyLogs),
             generateRecommendations(memory.dailyLogs)

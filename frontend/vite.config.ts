@@ -12,7 +12,6 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(getClientEnv('VITE_API_URL')),
-      'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(getClientEnv('VITE_GEMINI_API_KEY')),
       'import.meta.env.VITE_GOOGLE_CLIENT_ID': JSON.stringify(getClientEnv('VITE_GOOGLE_CLIENT_ID')),
     },
     resolve: {

@@ -227,7 +227,7 @@ export default function Chat() {
         }
         
         // Convert Uint8Array (raw PCM) to Float32Array for AudioBuffer
-        // Gemini TTS returns 16-bit PCM mono at 24kHz
+        // AI speech returns 16-bit PCM mono at 24kHz
         const int16Data = new Int16Array(bytes.buffer);
         const float32Data = new Float32Array(int16Data.length);
         for (let i = 0; i < int16Data.length; i++) {
@@ -756,7 +756,7 @@ export default function Chat() {
           throw e;
         }
       } else {
-        // Gemini API Mode
+        // Hosted AI mode
         const history: { role: "user" | "model", text: string, feedback?: "positive" | "negative", feedbackCategory?: string, feedbackReason?: string }[] = messages.slice(-10).map(m => ({
           role: (m.sender === "user" ? "user" : "model") as "user" | "model",
           text: m.text,
