@@ -120,29 +120,9 @@ export async function generateTwinResponseStream(
       throw new Error(data.error || data.message || 'Groq request failed');
     }
 
-    const fullText = data.text || "";
-
-    // Parse final metadata
-    const parts = fullText.split('---METADATA---');
-    const conversationalText = parts[0].trim();
+    const conversationalText = (data.text || "").replace(/<END_OF_RESPONSE>/gi, '').trim();
     onChunk(conversationalText);
-    let metadata = { mood: "Neutral", intent: "Unknown", detected_pattern: "None", recommended_action: "None" };
-
-    if (parts.length > 1) {
-      try {
-        const jsonStr = extractJsonObject(parts[1]);
-        
-        if (jsonStr) {
-          if (jsonStr.startsWith('{') && jsonStr.endsWith('}')) {
-            metadata = JSON.parse(jsonStr);
-          } else {
-            console.warn("Incomplete metadata JSON received in stream:", jsonStr);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to parse metadata JSON:", e);
-      }
-    }
+    const metadata = data.metadata || { mood: "Neutral", intent: "Unknown", detected_pattern: "None", recommended_action: "None" };
 
     return {
       text: conversationalText,
@@ -175,8 +155,10 @@ export async function generateTwinResponse(
     const { systemInstruction } = await promptResponse.json();
 
     const fullText = await generateGroqText(message, { history, systemInstruction });
-    const parts = fullText.split("---METADATA---");
-    const text = parts[0].trim();
+    const parts = fullText.split(/---?METADATA---?/);
+    const text = parts[0]
+      .replace(/<END_OF_RESPONSE>/gi, '')
+      .trim();
     let metadata = {
       mood: "Neutral",
       intent: "Chat",

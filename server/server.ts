@@ -116,13 +116,26 @@ async function startServer() {
         });
       }
 
-      const text = data.choices?.[0]?.message?.content?.trim();
+      const raw = data.choices?.[0]?.message?.content?.trim();
 
-      if (!text) {
+      if (!raw) {
         return res.status(502).json({ error: 'Groq returned an empty response.' });
       }
 
-      res.json({ text });
+      // Split on metadata separator (handle missing leading ---)
+      const metaSplit = raw.split(/---?METADATA---?/);
+      const text = metaSplit[0].replace(/<END_OF_RESPONSE>/gi, '').trim();
+      let metadata = null;
+      if (metaSplit[1]) {
+        try {
+          let jsonStr = metaSplit[1].trim().replace(/<END_OF_RESPONSE>/gi, '').trim();
+          if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace(/^```[\w]*/, '').replace(/```$/, '').trim();
+          const start = jsonStr.indexOf('{'), end = jsonStr.lastIndexOf('}');
+          if (start !== -1 && end !== -1) metadata = JSON.parse(jsonStr.slice(start, end + 1));
+        } catch { /* ignore parse errors */ }
+      }
+
+      res.json({ text, metadata });
     } catch (error: any) {
       console.error('Groq chat error:', error);
       res.status(500).json({ error: error.message || 'Failed to communicate with Groq.' });

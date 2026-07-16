@@ -184,8 +184,7 @@ export const getSystemPrompt = async (req: any, res: Response) => {
              "newKnowledge": ["New fact learned about the user to remember"]
            }
          }
-      9. At the VERY END of your response (after the metadata JSON), you MUST include this exact token:
-         <END_OF_RESPONSE>
+      9. Do NOT add any text after the metadata JSON. End your response immediately after the closing brace.
     `.trim();
 
     res.json({ systemInstruction });
