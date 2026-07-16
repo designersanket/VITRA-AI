@@ -64,7 +64,7 @@ async function startServer() {
   app.use('/api/connect', connectorRoutes);
   app.use('/api/productivity', productivityRoutes);
 
-  app.post('/api/chat/groq', protect, async (req: any, res) => {
+  const handleGroqChat = async (req: any, res: any) => {
     try {
       const { message, history = [], systemInstruction, responseFormat } = req.body;
       const apiKey = process.env.GROQ_API_KEY;
@@ -127,11 +127,10 @@ async function startServer() {
       console.error('Groq chat error:', error);
       res.status(500).json({ error: error.message || 'Failed to communicate with Groq.' });
     }
-  });
+  };
 
-  app.post('/api/chat/gemini', protect, (req: any, res) => {
-    res.status(410).json({ error: 'Gemini chat has been replaced by /api/chat/groq.' });
-  });
+  app.post('/api/chat/groq', protect, handleGroqChat);
+  app.post('/api/chat/gemini', protect, handleGroqChat);
 
   app.get('/api/chat/local/models', async (req, res) => {
     try {
