@@ -30,6 +30,25 @@ async function generateGroqText(
   return data.text || "";
 }
 
+function extractJsonObject(raw: string): string {
+  let jsonStr = raw.trim();
+  jsonStr = jsonStr.replace(/<END_OF_RESPONSE>\s*$/i, "").trim();
+
+  if (jsonStr.startsWith('```json')) {
+    jsonStr = jsonStr.replace(/^```json/i, '').replace(/```\s*$/i, '').trim();
+  } else if (jsonStr.startsWith('```')) {
+    jsonStr = jsonStr.replace(/^```/, '').replace(/```\s*$/i, '').trim();
+  }
+
+  const firstBrace = jsonStr.indexOf('{');
+  const lastBrace = jsonStr.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return jsonStr.slice(firstBrace, lastBrace + 1);
+  }
+
+  return jsonStr;
+}
+
 export interface TwinProfile {
   name: string;
   personality: string;
@@ -111,16 +130,9 @@ export async function generateTwinResponseStream(
 
     if (parts.length > 1) {
       try {
-        let jsonStr = parts[1].trim();
-        // Handle potential markdown code blocks
-        if (jsonStr.startsWith('```json')) {
-          jsonStr = jsonStr.replace(/^```json/, '').replace(/```$/, '').trim();
-        } else if (jsonStr.startsWith('```')) {
-          jsonStr = jsonStr.replace(/^```/, '').replace(/```$/, '').trim();
-        }
+        const jsonStr = extractJsonObject(parts[1]);
         
         if (jsonStr) {
-          // Check if JSON is complete (starts with { and ends with })
           if (jsonStr.startsWith('{') && jsonStr.endsWith('}')) {
             metadata = JSON.parse(jsonStr);
           } else {
@@ -174,16 +186,9 @@ export async function generateTwinResponse(
 
     if (parts[1]) {
       try {
-        let jsonStr = parts[1].trim();
-        // Handle potential markdown code blocks
-        if (jsonStr.startsWith('```json')) {
-          jsonStr = jsonStr.replace(/^```json/, '').replace(/```$/, '').trim();
-        } else if (jsonStr.startsWith('```')) {
-          jsonStr = jsonStr.replace(/^```/, '').replace(/```$/, '').trim();
-        }
+        const jsonStr = extractJsonObject(parts[1]);
 
         if (jsonStr) {
-          // Check if JSON is complete
           if (jsonStr.startsWith('{') && jsonStr.endsWith('}')) {
             metadata = JSON.parse(jsonStr);
           } else {

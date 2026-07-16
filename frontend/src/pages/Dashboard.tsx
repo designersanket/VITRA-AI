@@ -153,8 +153,24 @@ export default function Dashboard() {
     );
   }
 
-  const syncPercentage = twinData ? Math.min(40 + (twinData.knowledge?.length || 0) * 5 + (msgCount > 0 ? 10 : 0), 100) : 0;
-  const hasKnowledge = twinData?.knowledge && twinData.knowledge.length > 0;
+  const knowledgeCount = twinData?.knowledge?.length || 0;
+  const memoryCount = twinData?.memory?.length || 0;
+  const learnedTraits = twinData?.learnedTraits || {};
+  const learnedTraitCount = Object.values(learnedTraits).reduce((count: number, value: any) => {
+    if (Array.isArray(value)) return count + value.length;
+    return count + (value ? 1 : 0);
+  }, 0);
+  const dailyLogCount = memoryData?.dailyLogs?.length || 0;
+  const hasLearningBase = knowledgeCount > 0 || memoryCount > 0 || learnedTraitCount > 0 || msgCount > 0 || dailyLogCount > 0;
+  const syncPercentage = twinData ? Math.min(40 + (knowledgeCount + memoryCount + learnedTraitCount) * 5 + (msgCount > 0 ? 10 : 0), 100) : 0;
+  const behaviorCards = learnedTraits.behaviorTraits?.length
+    ? learnedTraits.behaviorTraits
+    : [
+        memoryData?.computedInsights?.personalityInsights && `Communication style: ${memoryData.computedInsights.personalityInsights}`,
+        memoryData?.computedInsights?.peakProductivityTime && memoryData.computedInsights.peakProductivityTime !== 'Unknown' && `Most active around ${memoryData.computedInsights.peakProductivityTime}`,
+        memoryData?.computedInsights?.mostProductiveDay && memoryData.computedInsights.mostProductiveDay !== 'Unknown' && `Most productive on ${memoryData.computedInsights.mostProductiveDay}`,
+        streak > 0 && `${streak}-day activity streak`
+      ].filter(Boolean) as string[];
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-4 md:p-8">
@@ -535,17 +551,17 @@ export default function Dashboard() {
             <div className="grid md:grid-cols-2 gap-8">
               {/* Twin Intelligence Panel */}
               <div className="p-8 rounded-[40px] bg-white/[0.03] border border-white/5 relative overflow-hidden">
-                {!hasKnowledge && (
+                {!hasLearningBase && (
                   <LockedSection 
                     title="Twin Intelligence Locked" 
                     message="Add knowledge to your twin to unlock intelligence insights." 
                   />
                 )}
-                <div className={`flex items-center gap-3 mb-8 ${!hasKnowledge ? 'blur-sm opacity-20' : ''}`}>
+                <div className={`flex items-center gap-3 mb-8 ${!hasLearningBase ? 'blur-sm opacity-20' : ''}`}>
                   <Target size={20} className="text-secondary" />
                   <h3 className="text-xl font-bold">Twin Intelligence</h3>
                 </div>
-                <div className={`space-y-6 ${!hasKnowledge ? 'blur-sm opacity-20' : ''}`}>
+                <div className={`space-y-6 ${!hasLearningBase ? 'blur-sm opacity-20' : ''}`}>
                   <IntelligenceItem 
                     label="Core Knowledge" 
                     values={twinData?.learnedTraits?.coreKnowledge?.length ? twinData.learnedTraits.coreKnowledge : []} 
@@ -571,19 +587,19 @@ export default function Dashboard() {
 
               {/* Memory / Knowledge Section */}
               <div className="p-8 rounded-[40px] bg-white/[0.03] border border-white/5 relative overflow-hidden">
-                {!hasKnowledge && (
+                {!hasLearningBase && (
                   <LockedSection 
                     title="Behaviors Locked" 
                     message="Your twin needs knowledge to learn your behavioral patterns." 
                   />
                 )}
-                <div className={`flex items-center gap-3 mb-8 ${!hasKnowledge ? 'blur-sm opacity-20' : ''}`}>
+                <div className={`flex items-center gap-3 mb-8 ${!hasLearningBase ? 'blur-sm opacity-20' : ''}`}>
                   <BookOpen size={20} className="text-primary" />
                   <h3 className="text-xl font-bold">Learned Behaviors</h3>
                 </div>
-                <div className={`grid grid-cols-1 gap-4 ${!hasKnowledge ? 'blur-sm opacity-20' : ''}`}>
-                  {twinData?.learnedTraits?.behaviorTraits?.length ? (
-                    twinData.learnedTraits.behaviorTraits.slice(0, 4).map((trait: string, i: number) => (
+                <div className={`grid grid-cols-1 gap-4 ${!hasLearningBase ? 'blur-sm opacity-20' : ''}`}>
+                  {behaviorCards.length ? (
+                    behaviorCards.slice(0, 4).map((trait: string, i: number) => (
                       <MemoryCard key={i} icon={<Sparkles size={16} />} text={trait} />
                     ))
                   ) : (
@@ -607,20 +623,20 @@ export default function Dashboard() {
 
             {/* Suggested Actions */}
             <div className="p-8 rounded-[40px] bg-white/[0.03] border border-white/5 relative overflow-hidden">
-              {!hasKnowledge && (
+              {!hasLearningBase && (
                 <LockedSection 
                   title="Suggestions Locked" 
                   message="Add knowledge to receive personalized AI suggestions." 
                 />
               )}
-              <div className={`flex items-center justify-between mb-8 ${!hasKnowledge ? 'blur-sm opacity-20' : ''}`}>
+              <div className={`flex items-center justify-between mb-8 ${!hasLearningBase ? 'blur-sm opacity-20' : ''}`}>
                 <div className="flex items-center gap-3">
                   <Zap size={20} className="text-yellow-400" />
                   <h3 className="text-xl font-bold">AI Suggestions</h3>
                 </div>
                 <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Daily</span>
               </div>
-              <div className={`space-y-4 ${!hasKnowledge ? 'blur-sm opacity-20' : ''}`}>
+              <div className={`space-y-4 ${!hasLearningBase ? 'blur-sm opacity-20' : ''}`}>
                 {memoryData?.computedInsights?.nudges?.length > 0 ? (
                   memoryData.computedInsights.nudges.slice(0, 3).map((nudge: any) => (
                     <ActionCard 
@@ -669,12 +685,12 @@ export default function Dashboard() {
               </div>
 
               <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/5 flex items-center justify-between group hover:bg-white/[0.05] transition-all cursor-pointer relative overflow-hidden" onClick={() => navigate('/insights')}>
-                {!hasKnowledge && (
+                {!hasLearningBase && (
                   <div className="absolute inset-0 bg-[#050505]/60 backdrop-blur-[2px] flex items-center justify-center z-10">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Locked</span>
                   </div>
                 )}
-                <div className={`flex items-center gap-4 ${!hasKnowledge ? 'blur-[1px] opacity-20' : ''}`}>
+                <div className={`flex items-center gap-4 ${!hasLearningBase ? 'blur-[1px] opacity-20' : ''}`}>
                   <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
                     <TrendingUp size={20} className="text-emerald-400" />
                   </div>
@@ -704,7 +720,7 @@ export default function Dashboard() {
                   <span className="text-sm font-bold">
                     {todayData ? (
                       <>
-                        {todayData.mood} {todayData.mood === "Happy" ? "😊" : todayData.mood === "Focused" ? "🧠" : todayData.mood === "Neutral" ? "😐" : todayData.mood === "Stressed" ? "😫" : "😢"}
+                        {todayData.mood}
                       </>
                     ) : "Not Logged"}
                   </span>
