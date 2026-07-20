@@ -94,11 +94,20 @@ export const analyzeBehavior = (memory: any) => {
   const { dailyLogs, chatHistory } = memory;
   
   if (!dailyLogs || dailyLogs.length === 0) {
+    // No daily logs yet — return default nudges to encourage first log
     return {
       averageSleep: 0,
       workload: 0,
       stressLevel: 'Unknown',
-      personalityInsights: 'Insufficient data'
+      personalityInsights: 'Insufficient data',
+      peakProductivityTime: 'Unknown',
+      frequentPhrases: [],
+      mostProductiveDay: 'Unknown',
+      nudges: [
+        { id: 'onboard-1', type: 'productivity', title: 'Start Tracking', message: 'Log your first day to help your twin learn your work and study patterns.', action: 'Log Today', icon: 'Zap' },
+        { id: 'onboard-2', type: 'health', title: 'Track Your Sleep', message: 'Sleep data is one of the strongest signals for your twin. Log tonight and see insights appear.', action: 'Log Today', icon: 'Moon' },
+        { id: 'onboard-3', type: 'mood', title: 'How Are You Feeling?', message: 'Your mood history helps your twin predict your energy and suggest the right actions at the right time.', action: 'Log Today', icon: 'Heart' },
+      ]
     };
   }
 
@@ -199,37 +208,44 @@ export const analyzeBehavior = (memory: any) => {
     });
   }
 
-  // Generate Proactive Nudges
+  // Generate Proactive Nudges — always produce suggestions based on data
   const nudges = [];
+
+  // Sleep
   if (averageSleep < 6) {
-    nudges.push({
-      id: 'sleep-nudge',
-      type: 'health',
-      title: 'Sleep Alert',
-      message: `I've noticed your sleep average is only ${averageSleep.toFixed(1)}h. You might feel more productive if we aim for 7h tonight.`,
-      action: 'Schedule Sleep',
-      icon: 'Moon'
-    });
+    nudges.push({ id: 'sleep-nudge', type: 'health', title: 'Sleep Alert', message: `Your sleep average is only ${averageSleep.toFixed(1)}h. Aim for at least 7h tonight to improve focus and energy.`, action: 'Schedule Sleep', icon: 'Moon' });
+  } else if (averageSleep >= 6 && averageSleep < 7) {
+    nudges.push({ id: 'sleep-nudge', type: 'health', title: 'Sleep Tip', message: `You're averaging ${averageSleep.toFixed(1)}h of sleep. You're close — try going to bed 30 minutes earlier tonight.`, action: 'Log Today', icon: 'Moon' });
+  } else {
+    nudges.push({ id: 'sleep-nudge', type: 'health', title: 'Great Sleep', message: `Your ${averageSleep.toFixed(1)}h sleep average is solid. Consistent rest is one of the biggest drivers of productivity.`, action: 'Keep It Up', icon: 'Moon' });
   }
+
+  // Workload
   if (workload > 10) {
-    nudges.push({
-      id: 'workload-nudge',
-      type: 'productivity',
-      title: 'Burnout Warning',
-      message: `Your workload is averaging ${workload.toFixed(1)}h. That's quite high! Remember to take short breaks to avoid burnout.`,
-      action: 'Take a Break',
-      icon: 'Zap'
-    });
+    nudges.push({ id: 'workload-nudge', type: 'productivity', title: 'Burnout Warning', message: `Your combined work+study average is ${workload.toFixed(1)}h/day. Take short breaks to avoid burnout.`, action: 'Take a Break', icon: 'Zap' });
+  } else if (workload >= 6) {
+    nudges.push({ id: 'workload-nudge', type: 'productivity', title: 'Good Momentum', message: `You're putting in ${workload.toFixed(1)}h of productive work daily. Keep the consistency going.`, action: 'View Insights', icon: 'Zap' });
+  } else {
+    nudges.push({ id: 'workload-nudge', type: 'productivity', title: 'Boost Productivity', message: `Your logged work+study time is ${workload.toFixed(1)}h/day. Even 1 extra focused hour can make a big difference.`, action: 'Log Today', icon: 'Zap' });
   }
+
+  // Mood / Stress
   if (stressLevel === 'High') {
-    nudges.push({
-      id: 'stress-nudge',
-      type: 'mood',
-      title: 'Stress Support',
-      message: `You've been feeling stressed lately. Want to talk about what's on your mind? I'm here to listen.`,
-      action: 'Chat Now',
-      icon: 'Heart'
-    });
+    nudges.push({ id: 'stress-nudge', type: 'mood', title: 'Stress Support', message: `You've been feeling stressed frequently. Want to talk about what's on your mind? Your twin is here to listen.`, action: 'Chat Now', icon: 'Heart' });
+  } else if (stressLevel === 'Moderate') {
+    nudges.push({ id: 'stress-nudge', type: 'mood', title: 'Mood Check', message: `Some stress is showing in your logs. A quick chat with your twin or a short walk can help reset your focus.`, action: 'Chat Now', icon: 'Heart' });
+  } else {
+    const positiveMoods = ['happy', 'focused', 'energetic', 'motivated', 'calm'];
+    const topMood = moods.length > 0 ? moods[0] : 'neutral';
+    const isPositive = positiveMoods.includes(topMood);
+    nudges.push({ id: 'stress-nudge', type: 'mood', title: isPositive ? 'Positive Streak' : 'Mood Insight', message: isPositive ? `Your mood has been ${topMood} lately — great energy to channel into your goals.` : `Your mood patterns are stable. Keep logging daily so your twin can track trends over time.`, action: 'View Insights', icon: 'Heart' });
+  }
+
+  // Streak / consistency bonus nudge
+  if (totalEntries >= 3) {
+    nudges.push({ id: 'streak-nudge', type: 'consistency', title: 'Consistency Detected', message: `You've logged ${totalEntries} days of data. Your twin is building a reliable model of your patterns — keep it up.`, action: 'View Timeline', icon: 'TrendingUp' });
+  } else {
+    nudges.push({ id: 'streak-nudge', type: 'consistency', title: 'Build Your Streak', message: `Log your day every day for a week and your twin will start predicting your mood and productivity patterns.`, action: 'Log Today', icon: 'TrendingUp' });
   }
 
   return {

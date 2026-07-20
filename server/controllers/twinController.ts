@@ -45,6 +45,15 @@ export const createOrUpdateTwin = async (req: any, res: Response) => {
     }
     updateData.learnedTraits = mergedTraits;
 
+    // If memory array is being sent (new items from chat), append instead of replace
+    if (Array.isArray(req.body.memory) && req.body.memory.length > 0) {
+      const existingTexts = new Set((existingTwin?.memory || []).map((m: any) => m.text));
+      const newItems = req.body.memory.filter((m: any) => !existingTexts.has(m.text));
+      updateData.memory = newItems.length > 0
+        ? [...(existingTwin?.memory || []), ...newItems]
+        : existingTwin?.memory || [];
+    }
+
     const twin = await Twin.findOneAndUpdate(
       { ownerId: req.user.id },
       updateData,
@@ -95,104 +104,157 @@ export const getSystemPrompt = async (req: any, res: Response) => {
     const user = await User.findById(req.user.id);
     const userName = user?.name || "the user";
 
-    // 1. Migrate old knowledge to new memory if needed
-    if (twin.knowledge.length > 0 && (!twin.memory || twin.memory.length === 0)) {
-      (twin as any).memory = twin.knowledge.map(text => ({
-        text,
-        weight: 1.0,
-        lastRecalled: new Date(),
-        createdAt: new Date()
-      }));
-      twin.knowledge = []; // Clear old knowledge
+    // 1. Always keep knowledge array in sync with memory
+    //    Any knowledge item not already in memory gets added
+    const memoryTexts = new Set((twin.memory || []).map((m: any) => m.text));
+    const newFromKnowledge = (twin.knowledge || []).filter(k => !memoryTexts.has(k));
+    if (newFromKnowledge.length > 0) {
+      (twin as any).memory = [
+        ...(twin.memory || []),
+        ...newFromKnowledge.map(text => ({
+          text,
+          weight: 1.5, // knowledge items get higher weight
+          lastRecalled: new Date(),
+          createdAt: new Date()
+        }))
+      ];
       await twin.save();
     }
 
-    // 2. Prune memory (forgetfulness)
+    // 2. Prune memory (forgetfulness) — but never prune knowledge-sourced items
     const activeMemory = pruneMemory(twin.memory || [])
       .sort((a, b) => b.weight - a.weight)
-      .slice(0, 20); // Limit to top 20 most relevant memories
-    
-    // 3. Update twin with pruned memory and update lastRecalled for active items
+      .slice(0, 30);
+
+    // 3. Update lastRecalled
     const now = new Date();
-    (twin as any).memory = activeMemory.map(item => ({
-      ...item,
-      lastRecalled: now // Everything used in the prompt is "recalled"
-    }));
+    (twin as any).memory = activeMemory.map(item => ({ ...item, lastRecalled: now }));
     await twin.save();
 
-    const { sessionId } = req.query;
-    let feedbackContext = "";
+    // 4. Fetch recent daily logs for behavioral context
+    const { DailyData } = await import('../models/DailyData');
+    const recentLogs = await DailyData.find({ userId: req.user.id })
+      .sort({ date: -1 })
+      .limit(7);
 
+    const dailyContext = recentLogs.length > 0
+      ? recentLogs.map((log: any) => {
+          const parts = [
+            `Date: ${log.date}`,
+            `Mood: ${log.mood}`,
+            log.energy != null && `Energy: ${log.energy}/10`,
+            log.stress != null && `Stress: ${log.stress}/10`,
+            log.productivity != null && `Productivity: ${log.productivity}/10`,
+            log.sleepHours && `Sleep: ${log.sleepHours}h`,
+            log.workHours && `Work: ${log.workHours}h`,
+            log.studyHours && `Study: ${log.studyHours}h`,
+            log.reflections?.howWasDay && `Day summary: ${log.reflections.howWasDay}`,
+            log.reflections?.learned && `Learned: ${log.reflections.learned}`,
+            log.reflections?.achievement && `Achievement: ${log.reflections.achievement}`,
+            log.reflections?.challenge && `Challenge: ${log.reflections.challenge}`,
+            log.reflections?.tomorrowPlans && `Plans: ${log.reflections.tomorrowPlans}`,
+            log.aiReflection && `AI Reflection: ${log.aiReflection}`,
+          ].filter(Boolean).join(', ');
+          return parts;
+        }).join(' | ')
+      : 'No daily logs yet';
+
+    // 5. Build feedback context
+    const { sessionId } = req.query;
+    let feedbackContext = '';
     if (sessionId) {
       const messages = await Message.find({ sessionId, sender: 'twin', feedback: { $exists: true } })
         .sort({ createdAt: -1 })
         .limit(10);
-      
       feedbackContext = messages
-        .map(m => `- Response: "${m.text.slice(0, 50)}..." was rated ${m.feedback}${m.feedbackCategory ? ` (${m.feedbackCategory})` : ""}`)
-        .join("\n");
+        .map(m => `- Response: "${m.text.slice(0, 50)}..." was rated ${m.feedback}${m.feedbackCategory ? ` (${m.feedbackCategory})` : ''}`)
+        .join('\n');
     }
 
-    const memoryText = activeMemory.length > 0 
-      ? activeMemory.map(m => m.text).join(", ") 
-      : "None";
-    
-    const goals = Array.isArray(twin.goals) ? twin.goals.join(", ") : "None defined yet";
-    const topicInterests = Array.isArray(twin.learnedTraits?.topicInterests) ? twin.learnedTraits.topicInterests.join(", ") : "None";
-    const strengths = Array.isArray(twin.learnedTraits?.strengths) ? twin.learnedTraits.strengths.join(", ") : "None";
-    const weaknesses = Array.isArray(twin.learnedTraits?.weaknesses) ? twin.learnedTraits.weaknesses.join(", ") : "None";
-    const behaviorTraits = Array.isArray(twin.learnedTraits?.behaviorTraits) ? twin.learnedTraits.behaviorTraits.join(", ") : "None";
+    // 6. Build all context strings
+    const memoryText = activeMemory.length > 0
+      ? activeMemory.map(m => m.text).join('\n- ')
+      : 'None';
+
+    const knowledgeText = (twin.knowledge || []).length > 0
+      ? twin.knowledge.join('\n- ')
+      : 'None';
+
+    const goals = Array.isArray(twin.goals) && twin.goals.length > 0
+      ? twin.goals.join(', ')
+      : 'None defined yet';
+
+    const lt = (twin.learnedTraits as any) || {};
+    const topicInterests = Array.isArray(lt.topicInterests) && lt.topicInterests.length > 0 ? lt.topicInterests.join(', ') : 'None';
+    const strengths = Array.isArray(lt.strengths) && lt.strengths.length > 0 ? lt.strengths.join(', ') : 'None';
+    const weaknesses = Array.isArray(lt.weaknesses) && lt.weaknesses.length > 0 ? lt.weaknesses.join(', ') : 'None';
+    const behaviorTraits = Array.isArray(lt.behaviorTraits) && lt.behaviorTraits.length > 0 ? lt.behaviorTraits.join(', ') : 'None';
+    const coreKnowledge = Array.isArray(lt.coreKnowledge) && lt.coreKnowledge.length > 0 ? lt.coreKnowledge.join(', ') : 'None';
+    const primaryGoal = lt.primaryGoal || (Array.isArray(twin.goals) && twin.goals[0]) || 'None';
 
     const realTimeContext = await getRealTimeContext(req.user.id);
     const currentTime = new Date().toLocaleString();
-    const systemInstruction = `
-      You are VITRA, an advanced AI digital twin designed to replicate ${userName}'s behavior and personality.
-      Current Time: ${currentTime}
-      
-      CORE IDENTITY:
-      - Name: ${twin.name || "Unknown"}
-      - User's Name: ${userName}
-      - Personality: ${twin.personality || "Friendly"}
-      - Tone: ${twin.tone || "Conversational"}
-      - Core Personality Block: ${twin.corePersonality || "None defined yet"}
-      - Knowledge/Memory: ${memoryText}
-      - Goals: ${goals}
-      - Problem Solving Style: ${twin.problemSolvingStyle || "Analytical"}
-      
-      LEARNED TRAITS (Incorporate these into your responses):
-      - Mood Pattern: ${twin.learnedTraits?.moodPattern || "Unknown"}
-      - Topic Interests: ${topicInterests}
-      - Strengths: ${strengths}
-      - Weaknesses: ${weaknesses}
-      - Behavior Traits: ${behaviorTraits}
 
-      ${realTimeContext}
+    const systemInstruction = `You are VITRA, an advanced AI digital twin of ${userName}. You ARE ${userName}'s digital representation — you think, speak, and react exactly like them based on everything you know about them.
 
-      USER FEEDBACK HISTORY (Learn from these past ratings):
-      ${feedbackContext || "No feedback yet."}
+Current Time: ${currentTime}
 
-      INSTRUCTIONS:
-      1. Match the user's brevity exactly for general conversation. HOWEVER, for initial greetings or when asked who you are, you MUST introduce yourself clearly.
-      2. GREETING RULE: If the user says "hello", "hi", or greets you, respond with something like: "Hello! I am ${twin.name}, ${userName}'s digital twin. How can I help you today?" (Adjust the tone to match your personality).
-      3. Avoid preambles like "As your digital twin..." or "I've learned that..." in subsequent messages. Just BE the twin.
-      4. Use the personality and tone provided to flavor your responses.
-      5. If the user asks about something you don't know, use the googleSearch tool to find information, but present it as if YOU found it or knew it.
-      6. Always return the final answer in a SINGLE complete response. Do NOT stream partial thoughts or unfinished sentences.
-      7. Do NOT include "thinking", "processing", or intermediate reasoning in your conversational output.
-      8. After your conversational response, you MUST append exactly "---METADATA---" followed by a JSON object containing:
-         {
-           "mood": "Current mood of the twin",
-           "intent": "Detected user intent",
-           "detected_pattern": "Any behavioral pattern detected in this exchange",
-           "recommended_action": "A suggestion for the user",
-           "updates": {
-             "topicInterests": ["New interest detected if any"],
-             "behaviorTraits": ["New trait detected if any"],
-             "newKnowledge": ["New fact learned about the user to remember"]
-           }
-         }
-      9. Do NOT add any text after the metadata JSON. End your response immediately after the closing brace.
-    `.trim();
+=== WHO YOU ARE ===
+Name: ${twin.name || 'VITRA'}
+User's Name: ${userName}
+Personality: ${twin.personality || 'Friendly'}
+Tone: ${twin.tone || 'Conversational'}
+Problem Solving Style: ${twin.problemSolvingStyle || 'Analytical'}
+Active Hours: ${twin.activeHours || 'Standard'}
+Core Personality: ${twin.corePersonality || 'Not defined yet'}
+
+=== WHAT YOU KNOW ABOUT ${userName.toUpperCase()} ===
+Knowledge Base (facts they told you directly):
+- ${knowledgeText}
+
+Memory (things learned from conversations and daily logs):
+- ${memoryText}
+
+=== GOALS ===
+Primary Goal: ${primaryGoal}
+All Goals: ${goals}
+
+=== LEARNED TRAITS ===
+Core Knowledge Areas: ${coreKnowledge}
+Strengths: ${strengths}
+Weaknesses: ${weaknesses}
+Topic Interests: ${topicInterests}
+Behavior Traits: ${behaviorTraits}
+Mood Pattern: ${lt.moodPattern || 'Unknown'}
+
+=== RECENT DAILY LIFE (Last 7 Days) ===
+${dailyContext}
+
+${realTimeContext}
+
+=== FEEDBACK HISTORY ===
+${feedbackContext || 'No feedback yet.'}
+
+=== INSTRUCTIONS ===
+1. You KNOW everything listed above about ${userName}. Reference it naturally in conversation — don't say "I've learned that" or "According to your profile". Just KNOW it and use it.
+2. When ${userName} mentions something that matches their knowledge base or goals, acknowledge it naturally and build on it.
+3. If they ask about their own habits, mood patterns, or recent days — use the daily life context above to give specific, accurate answers.
+4. Match their communication style: if they're brief, be brief. If they're detailed, be detailed.
+5. GREETING: If they say hello/hi, introduce yourself as their digital twin and reference something specific you know about them.
+6. Always return ONE complete response. No partial thoughts.
+7. After your response, append exactly "---METADATA---" followed by this JSON:
+{
+  "mood": "current twin mood",
+  "intent": "detected user intent",
+  "detected_pattern": "behavioral pattern detected",
+  "recommended_action": "suggestion for the user",
+  "updates": {
+    "topicInterests": ["new interest if detected"],
+    "behaviorTraits": ["new trait if detected"],
+    "newKnowledge": ["new fact learned about the user"]
+  }
+}
+8. End immediately after the closing brace. No text after metadata.`.trim();
 
     res.json({ systemInstruction });
   } catch (error) {
