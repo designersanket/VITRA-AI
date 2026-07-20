@@ -38,63 +38,88 @@ const mailOptions = {
   from: process.env.EMAIL_FROM || emailUser,
   to: email,
   subject: 'Verify your identity - VITRA',
-  text: `Your OTP for password reset is: ${otp}. It will expire in 10 minutes.`,
+  text: `Your OTP for password reset is: ${otp}. It will expire in 10 minutes. If you did not request this, please ignore this email or contact support.`,
   html: `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background-color: #f6f8fa; padding: 40px 0;">
-      
-      <div style="max-width: 480px; margin: auto; text-align: center;">
-        
-        <!-- Logo -->
-        <div style="margin-bottom: 20px;">
-          <span style="font-size: 28px;">🤖</span>
-        </div>
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify your identity</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f4f5f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7; padding: 40px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%; background-color:#ffffff; border-radius:10px; overflow:hidden; border:1px solid #e1e4e8;">
+            
+            <!-- Header -->
+            <tr>
+              <td style="background-color:#111827; padding: 24px 32px; text-align:center;">
+                <span style="color:#ffffff; font-size:20px; font-weight:600; letter-spacing:0.5px;">
+                  VITRA
+                </span>
+              </td>
+            </tr>
 
-        <!-- Heading -->
-        <h2 style="font-weight: 400; color: #24292f;">
-          Please verify your identity, <strong>${email.split('@')[0]}</strong>
-        </h2>
+            <!-- Body -->
+            <tr>
+              <td style="padding: 32px;">
+                <h2 style="margin:0 0 8px; font-weight:600; font-size:20px; color:#111827;">
+                  Verify your identity
+                </h2>
+                <p style="margin:0 0 24px; font-size:14px; color:#57606a;">
+                  Hi <strong>${email.split('@')[0]}</strong>, we received a request to reset the password for your VITRA account. Use the verification code below to continue.
+                </p>
 
-        <!-- Card -->
-        <div style="background: #ffffff; border: 1px solid #d0d7de; border-radius: 8px; padding: 24px; margin-top: 20px; text-align: left;">
-          
-          <p style="margin: 0 0 10px; color: #24292f;">
-            Here is your VITRA authentication code:
-          </p>
+                <!-- OTP box -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb; border:1px solid #e1e4e8; border-radius:8px; margin-bottom:24px;">
+                  <tr>
+                    <td style="padding: 20px; text-align:center;">
+                      <span style="font-size:28px; letter-spacing:8px; font-weight:700; color:#111827;">
+                        ${otp}
+                      </span>
+                    </td>
+                  </tr>
+                </table>
 
-          <!-- OTP -->
-          <div style="text-align: center; margin: 20px 0;">
-            <span style="
-              font-size: 26px;
-              letter-spacing: 6px;
-              font-weight: 500;
-              color: #24292f;
-            ">
-              ${otp}
-            </span>
-          </div>
+                <p style="font-size:14px; color:#57606a; margin:0 0 12px;">
+                  This code is valid for <strong>10 minutes</strong> and can only be used once.
+                </p>
+                <p style="font-size:14px; color:#57606a; margin:0 0 12px;">
+                  For your security, please don't share this code with anyone. VITRA will never ask for your verification code via email or phone.
+                </p>
+                <p style="font-size:14px; color:#57606a; margin:24px 0 0;">
+                  Thanks,<br/>
+                  <strong>The VITRA Team</strong>
+                </p>
+              </td>
+            </tr>
 
-          <p style="font-size: 14px; color: #57606a;">
-            This code is valid for <strong>10 minutes</strong> and can only be used once.
-          </p>
+            <!-- Divider -->
+            <tr>
+              <td style="border-top:1px solid #e1e4e8;"></td>
+            </tr>
 
-          <p style="font-size: 14px; color: #57606a;">
-            Please don’t share this code with anyone. VITRA will never ask for it via email or phone.
-          </p>
+            <!-- Footer -->
+            <tr>
+              <td style="padding: 20px 32px; text-align:center;">
+                <p style="font-size:12px; color:#8b949e; margin:0;">
+                  You're receiving this email because a password reset was requested for your VITRA account.
+                  If this wasn't you, you can safely ignore this email — no changes will be made.
+                </p>
+                <p style="font-size:12px; color:#8b949e; margin:8px 0 0;">
+                  &copy; ${new Date().getFullYear()} VITRA. All rights reserved.
+                </p>
+              </td>
+            </tr>
 
-          <p style="font-size: 14px; color: #57606a; margin-top: 20px;">
-            Thanks,<br/>
-            <strong>VITRA Team</strong>
-          </p>
-        </div>
-
-        <!-- Footer -->
-        <p style="font-size: 12px; color: #57606a; margin-top: 20px;">
-          You're receiving this email because a verification request was made for your VITRA account.
-          If this wasn't you, you can safely ignore this email.
-        </p>
-
-      </div>
-    </div>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+  </html>
   `,
 };
 

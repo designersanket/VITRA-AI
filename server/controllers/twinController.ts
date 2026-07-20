@@ -27,16 +27,23 @@ export const createOrUpdateTwin = async (req: any, res: Response) => {
       updatedAt: new Date()
     };
 
-    // If learnedTraits are provided, we want to merge them rather than overwrite the whole object
-    if (learnedTraits) {
-      const existingTwin = await Twin.findOne({ ownerId: req.user.id });
-      if (existingTwin) {
-        updateData.learnedTraits = {
-          ...(existingTwin.learnedTraits || {}),
-          ...learnedTraits
-        };
+    // Merge learnedTraits: never overwrite existing data with empty arrays
+    const existingTwin = await Twin.findOne({ ownerId: req.user.id });
+    const existing = (existingTwin?.learnedTraits as any) || {};
+    const incoming = learnedTraits || {};
+
+    const mergedTraits: any = { ...existing };
+    for (const key of Object.keys(incoming)) {
+      const val = incoming[key];
+      // Only overwrite if incoming value is non-empty
+      if (Array.isArray(val) && val.length > 0) {
+        mergedTraits[key] = val;
+      } else if (!Array.isArray(val) && val !== '' && val != null) {
+        mergedTraits[key] = val;
       }
+      // If incoming is empty array or empty string, keep existing
     }
+    updateData.learnedTraits = mergedTraits;
 
     const twin = await Twin.findOneAndUpdate(
       { ownerId: req.user.id },
@@ -190,6 +197,78 @@ export const getSystemPrompt = async (req: any, res: Response) => {
     res.json({ systemInstruction });
   } catch (error) {
     console.error('Get system prompt error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const getDashboardSummary = async (req: any, res: Response) => {
+  try {
+    const userId = req.user.id;
+    const twin = await Twin.findOne({ ownerId: userId });
+    if (!twin) return res.json({ isEmpty: true });
+
+    const totalMessages = await Message.countDocuments({ userId });
+    const knowledgeCount = (twin.knowledge?.length || 0) + (twin.memory?.length || 0);
+    const learnedTraits: any = twin.learnedTraits || {};
+    const traitCount = Object.values(learnedTraits).reduce((n: number, v: any) =>
+      n + (Array.isArray(v) ? v.length : v ? 1 : 0), 0) as number;
+    const confidence = Math.min(
+      Math.round(40 + knowledgeCount * 2 + traitCount * 3 + Math.min(totalMessages * 0.5, 20)),
+      99
+    );
+
+    const lastSynced = twin.updatedAt ? new Date(twin.updatedAt) : new Date();
+    const diffMin = Math.floor((Date.now() - lastSynced.getTime()) / 60000);
+    const lastSyncedLabel = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin} min ago` : `${Math.floor(diffMin / 60)}h ago`;
+
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayMessages = await Message.countDocuments({ userId, timestamp: { $gte: todayStart } });
+    const recentMemories = (twin.memory || []).filter((m: any) => new Date(m.lastRecalled) >= todayStart).length;
+
+    const summaryBullets: string[] = [];
+    if (todayMessages > 0) summaryBullets.push(`Exchanged ${todayMessages} messages today`);
+    if (recentMemories > 0) summaryBullets.push(`Recalled ${recentMemories} memories today`);
+    if (traitCount > 0) summaryBullets.push(`Tracking ${traitCount} personality traits`);
+    if (knowledgeCount > 0) summaryBullets.push(`${knowledgeCount} knowledge items stored`);
+    if (summaryBullets.length === 0) summaryBullets.push('Start chatting to generate your daily summary');
+
+    const interests: string[] = learnedTraits.topicInterests || [];
+    const goals: string[] = twin.goals || [];
+    const behaviors: string[] = learnedTraits.behaviorTraits || [];
+    const predictionPool = [
+      interests.length > 0 && `You're likely to explore ${interests[0]} today based on your recent interests.`,
+      goals.length > 0 && `You may make progress on "${goals[0]}" — it's your top active goal.`,
+      behaviors.length > 0 && `Pattern detected: ${behaviors[0]}.`,
+      totalMessages > 10 && `Your twin has learned enough to predict your next question.`,
+      `Keep engaging — your twin's accuracy improves with every conversation.`
+    ].filter(Boolean) as string[];
+    const prediction = predictionPool[Math.floor(Date.now() / 86400000) % predictionPool.length];
+
+    const insightPool = [
+      traitCount > 5 && `Your twin has identified ${traitCount} unique traits about you.`,
+      learnedTraits.strengths?.length > 0 && `Strength detected: ${learnedTraits.strengths[0]}.`,
+      totalMessages > 20 && `You've been consistently engaging — ${totalMessages} messages and counting.`,
+      knowledgeCount > 5 && `Your knowledge base is growing. ${knowledgeCount} items stored.`,
+      `Every conversation makes your twin smarter and more like you.`
+    ].filter(Boolean) as string[];
+    const insight = insightPool[Math.floor(Date.now() / 43200000) % insightPool.length];
+
+    res.json({
+      isEmpty: false,
+      confidence,
+      lastSyncedLabel,
+      summaryBullets,
+      prediction,
+      insight,
+      stats: {
+        conversations: totalMessages,
+        knowledgeItems: knowledgeCount,
+        memoriesStored: twin.memory?.length || 0,
+        accuracy: confidence,
+      }
+    });
+  } catch (error) {
+    console.error('Dashboard summary error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

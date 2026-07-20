@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.post('/chat', protect, storeChatMessage);
 router.post('/daily', protect, storeDailyLog);
+router.get('/me', protect, getFullMemory);
 router.get('/:userId', protect, getFullMemory);
 
 export default router;

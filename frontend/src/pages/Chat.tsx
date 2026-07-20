@@ -321,10 +321,15 @@ export default function Chat() {
   // Handle Quick Ask from Dashboard
   useEffect(() => {
     const query = searchParams.get("q");
+    const sessionParam = searchParams.get("session");
+    if (sessionParam && sessions.length > 0) {
+      const found = sessions.find(s => s.id === sessionParam);
+      if (found) setCurrentSessionId(found.id);
+    }
     if (query && !input && !messages.length && currentSessionId) {
       setInput(query);
     }
-  }, [searchParams, currentSessionId]);
+  }, [searchParams, currentSessionId, sessions]);
 
   // Fetch Sessions
   useEffect(() => {
