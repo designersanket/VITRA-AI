@@ -6,7 +6,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { io, Socket } from "socket.io-client";
-import { generateTwinResponseStream, TwinProfile, generateChatTitle, generateSpeech, generateChatSuggestions, pruneTwinMemory, extractImportantFacts } from "../services/geminiService";
+import { generateTwinResponseStream, TwinProfile, generateChatTitle, generateChatSuggestions, pruneTwinMemory, extractImportantFacts } from "../services/geminiService";
 import { streamLocalChat, LocalChatMessage, verifyOllama, getLocalModels } from "../services/localAiService";
 
 interface Message {
@@ -73,11 +73,20 @@ export default function Chat() {
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(() => {
     return localStorage.getItem("vitra_speech_enabled") === "true";
   });
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+
+  const stopSpeech = () => {
+    window.speechSynthesis?.cancel();
+    setIsSpeaking(false);
+    setSpeakingMsgId(null);
+  };
 
   const toggleSpeech = () => {
     const newValue = !isSpeechEnabled;
     setIsSpeechEnabled(newValue);
     localStorage.setItem("vitra_speech_enabled", newValue.toString());
+    if (!newValue) stopSpeech();
     showToast(newValue ? "Speech Enabled" : "Speech Disabled", newValue ? "success" : "info");
   };
   const [wasLastInputVoice, setWasLastInputVoice] = useState(false);
@@ -93,8 +102,7 @@ export default function Chat() {
   const [showSetupGuide, setShowSetupGuide] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -186,65 +194,60 @@ export default function Chat() {
     }
   };
 
-  const getVoiceForTone = (tone?: string) => {
-    if (!tone) return "Kore";
-    const t = tone.toLowerCase();
-    if (t.includes("warm") || t.includes("friendly") || t.includes("empathetic")) return "Kore";
-    if (t.includes("professional") || t.includes("serious") || t.includes("formal")) return "Zephyr";
-    if (t.includes("playful") || t.includes("energetic") || t.includes("fun")) return "Puck";
-    if (t.includes("deep") || t.includes("mysterious") || t.includes("calm")) return "Charon";
-    if (t.includes("bold") || t.includes("strong") || t.includes("assertive")) return "Fenrir";
-    return "Kore";
-  };
-
-  const playSpeech = async (text: string, force: boolean = false) => {
+  const playSpeech = (text: string, force: boolean = false, msgId?: string) => {
     if (!isSpeechEnabled && !force) return;
-    try {
-      const voice = getVoiceForTone(twinProfile?.tone);
-      const audioData = await generateSpeech(text, voice);
-      if (audioData) {
-        // Stop previous audio
-        if (audioContextRef.current) {
-          try {
-            audioContextRef.current.close();
-          } catch (e) {
-            console.error("Error closing audio context:", e);
-          }
-        }
-        
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        const audioContext = new AudioContextClass({ sampleRate: 24000 });
-        if (audioContext.state === 'suspended') {
-          await audioContext.resume();
-        }
-        audioContextRef.current = audioContext;
-        
-        const binaryString = atob(audioData);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        // Convert Uint8Array (raw PCM) to Float32Array for AudioBuffer
-        // AI speech returns 16-bit PCM mono at 24kHz
-        const int16Data = new Int16Array(bytes.buffer);
-        const float32Data = new Float32Array(int16Data.length);
-        for (let i = 0; i < int16Data.length; i++) {
-          float32Data[i] = int16Data[i] / 32768.0;
-        }
-        
-        const buffer = audioContext.createBuffer(1, float32Data.length, 24000);
-        buffer.getChannelData(0).set(float32Data);
-        
-        const source = audioContext.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioContext.destination);
-        source.start();
-      }
-    } catch (error) {
-      console.error("Failed to play speech:", error);
+    if (!window.speechSynthesis) return;
+
+    if (isSpeaking && speakingMsgId === msgId) {
+      stopSpeech();
+      return;
     }
+
+    stopSpeech();
+
+    const clean = text
+      .replace(/#{1,6}\s/g, '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/`{1,3}[^`]*`{1,3}/g, '')
+      .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+      .replace(/[-_~>|]/g, '')
+      .trim();
+
+    // Split into sentences to avoid Chrome's infinite loop bug on long text
+    const sentences = clean.match(/[^.!?]+[.!?]+/g) || [clean];
+
+    const voices = window.speechSynthesis.getVoices();
+    const tone = (twinProfile?.tone || '').toLowerCase();
+    let preferred: SpeechSynthesisVoice | undefined;
+    if (tone.includes('warm') || tone.includes('friendly')) {
+      preferred = voices.find(v => v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Karen'));
+    } else if (tone.includes('formal') || tone.includes('professional')) {
+      preferred = voices.find(v => v.name.includes('Daniel') || v.name.includes('Alex') || v.name.includes('Male'));
+    }
+    if (!preferred) preferred = voices.find(v => v.lang.startsWith('en'));
+
+    let index = 0;
+    const speakNext = () => {
+      if (index >= sentences.length) {
+        setIsSpeaking(false);
+        setSpeakingMsgId(null);
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(sentences[index++]);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      if (preferred) utterance.voice = preferred;
+      utterance.onend = speakNext;
+      utterance.onerror = () => { setIsSpeaking(false); setSpeakingMsgId(null); };
+      speechSynthRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    setIsSpeaking(true);
+    setSpeakingMsgId(msgId ?? null);
+    speakNext();
   };
 
   const handleApiError = (error: unknown, operation: string) => {
@@ -405,6 +408,15 @@ export default function Chat() {
       scrollToBottom();
     }
   }, [isTyping]);
+
+  // Preload speech synthesis voices
+  useEffect(() => {
+    if (window.speechSynthesis) {
+      // Voices may load async on some browsers
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+  }, []);
 
   // Speech Recognition Setup
   useEffect(() => {
@@ -873,7 +885,7 @@ export default function Chat() {
         })
       });
 
-      playSpeech(aiText, wasLastInputVoice);
+      playSpeech(aiText, wasLastInputVoice, undefined);
       setWasLastInputVoice(false);
 
       // 5. Generate suggestions for the next turn
@@ -1265,14 +1277,26 @@ export default function Chat() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={toggleSpeech}
-              className={`p-2.5 rounded-xl transition-all flex items-center gap-2 ${isSpeechEnabled ? "bg-primary text-white shadow-lg shadow-primary/20" : "hover:bg-white/5 text-white/40"}`}
-              title={isSpeechEnabled ? "Disable Speech" : "Enable Speech"}
-            >
-              {isSpeechEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-              <span className="text-xs font-bold hidden sm:block">{isSpeechEnabled ? "Voice On" : "Voice Off"}</span>
-            </button>
+            {isSpeaking && (
+              <button
+                onClick={stopSpeech}
+                className="p-2.5 rounded-xl transition-all flex items-center gap-2 bg-red-500 text-white shadow-lg shadow-red-500/20 animate-pulse"
+                title="Stop Speaking"
+              >
+                <VolumeX size={18} />
+                <span className="text-xs font-bold hidden sm:block">Stop</span>
+              </button>
+            )}
+            {!isSpeaking && (
+              <button 
+                onClick={toggleSpeech}
+                className={`p-2.5 rounded-xl transition-all flex items-center gap-2 ${isSpeechEnabled ? "bg-primary text-white shadow-lg shadow-primary/20" : "hover:bg-white/5 text-white/40"}`}
+                title={isSpeechEnabled ? "Disable Speech" : "Enable Speech"}
+              >
+                {isSpeechEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                <span className="text-xs font-bold hidden sm:block">{isSpeechEnabled ? "Voice On" : "Voice Off"}</span>
+              </button>
+            )}
             <button 
               onClick={() => setShowPinned(!showPinned)}
               className={`p-2.5 rounded-xl transition-all flex items-center gap-2 ${showPinned ? "bg-secondary text-white shadow-lg shadow-secondary/20" : "hover:bg-white/5 text-white/40"}`}
@@ -1616,11 +1640,13 @@ export default function Chat() {
                               <Pin size={12} fill={msg.isPinned ? "currentColor" : "none"} />
                             </button>
                             <button 
-                              onClick={() => playSpeech(msg.text, true)}
-                              className="p-1 rounded-md hover:bg-white/10 transition-all text-white/40 hover:text-primary"
-                              title="Play Speech"
+                              onClick={() => playSpeech(msg.text, true, msg.id)}
+                              className={`p-1 rounded-md hover:bg-white/10 transition-all ${
+                                speakingMsgId === msg.id ? 'text-red-400 opacity-100' : 'text-white/40 hover:text-primary'
+                              }`}
+                              title={speakingMsgId === msg.id ? 'Stop Speaking' : 'Play Speech'}
                             >
-                              <Volume2 size={12} />
+                              {speakingMsgId === msg.id ? <VolumeX size={12} /> : <Volume2 size={12} />}
                             </button>
                           </div>
                           {msg.moodAtTime && (
