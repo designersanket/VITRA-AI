@@ -78,14 +78,22 @@ async function startServer() {
         return res.status(400).json({ error: 'Message is required.' });
       }
 
-      const messages = Array.isArray(history)
-        ? history
-            .filter((item: any) => item?.role && item?.text)
-            .map((item: any) => ({
-              role: item.role === 'model' || item.role === 'assistant' ? 'assistant' : 'user',
-              content: String(item.text)
-            }))
+      // Keep only the latest 8 conversation messages
+      const MAX_HISTORY = 8;
+
+      const recentHistory = Array.isArray(history)
+        ? history.slice(-MAX_HISTORY)
         : [];
+
+      const messages = recentHistory
+        .filter((item: any) => item?.role && item?.text)
+        .map((item: any) => ({
+          role:
+            item.role === "model" || item.role === "assistant"
+              ? "assistant"
+              : "user",
+          content: String(item.text),
+        }));
 
       if (systemInstruction) {
         messages.unshift({ role: 'system', content: String(systemInstruction) });
@@ -103,7 +111,7 @@ async function startServer() {
           model,
           messages,
           temperature: 0.9,
-          max_tokens: 2048,
+          max_tokens: 548,
           response_format: responseFormat === 'json_object' ? { type: 'json_object' } : undefined
         })
       });

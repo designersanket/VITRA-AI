@@ -258,13 +258,9 @@ export async function analyzeUserPhoto(base64Image: string): Promise<{ personali
 }
 
 export async function generateDigitalAvatar(description: string, personality?: string, tone?: string, traits?: string[]): Promise<string> {
-  console.warn("Avatar generation is unavailable after switching from Gemini to Groq chat completions.", {
-    description,
-    personality,
-    tone,
-    traits
-  });
-  return "";
+  // Map personality to a DiceBear seed for a consistent, unique avatar
+  const seed = encodeURIComponent(`${personality || 'default'}-${(traits || []).join('-')}`);
+  return `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 }
 
 export async function generateChatTitle(messages: { role: string, text: string }[]): Promise<string> {

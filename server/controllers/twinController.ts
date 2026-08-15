@@ -3,7 +3,6 @@ import { Twin } from '../models/Twin';
 import { TwinSnapshot } from '../models/TwinSnapshot';
 import { User } from '../models/User';
 import { Message } from '../models/Message';
-import { getRealTimeContext } from '../services/connectorService';
 
 export const getTwin = async (req: any, res: Response) => {
   try {
@@ -121,140 +120,73 @@ export const getSystemPrompt = async (req: any, res: Response) => {
       await twin.save();
     }
 
-    // 2. Prune memory (forgetfulness) — but never prune knowledge-sourced items
+    // 2. Prune and cap memory to top 10 items only
     const activeMemory = pruneMemory(twin.memory || [])
       .sort((a, b) => b.weight - a.weight)
-      .slice(0, 30);
+      .slice(0, 10);
 
     // 3. Update lastRecalled
     const now = new Date();
     (twin as any).memory = activeMemory.map(item => ({ ...item, lastRecalled: now }));
     await twin.save();
 
-    // 4. Fetch recent daily logs for behavioral context
+    // 4. Fetch only last 3 daily logs, minimal fields
     const { DailyData } = await import('../models/DailyData');
     const recentLogs = await DailyData.find({ userId: req.user.id })
       .sort({ date: -1 })
-      .limit(7);
+      .limit(3);
+
+    const trim = (s: string, n: number) => s?.length > n ? s.slice(0, n) + '…' : s;
 
     const dailyContext = recentLogs.length > 0
-      ? recentLogs.map((log: any) => {
-          const parts = [
-            `Date: ${log.date}`,
-            `Mood: ${log.mood}`,
-            log.energy != null && `Energy: ${log.energy}/10`,
-            log.stress != null && `Stress: ${log.stress}/10`,
-            log.productivity != null && `Productivity: ${log.productivity}/10`,
-            log.sleepHours && `Sleep: ${log.sleepHours}h`,
-            log.workHours && `Work: ${log.workHours}h`,
-            log.studyHours && `Study: ${log.studyHours}h`,
-            log.reflections?.howWasDay && `Day summary: ${log.reflections.howWasDay}`,
-            log.reflections?.learned && `Learned: ${log.reflections.learned}`,
-            log.reflections?.achievement && `Achievement: ${log.reflections.achievement}`,
-            log.reflections?.challenge && `Challenge: ${log.reflections.challenge}`,
-            log.reflections?.tomorrowPlans && `Plans: ${log.reflections.tomorrowPlans}`,
-            log.aiReflection && `AI Reflection: ${log.aiReflection}`,
-          ].filter(Boolean).join(', ');
-          return parts;
-        }).join(' | ')
-      : 'No daily logs yet';
+      ? recentLogs.map((log: any) => [
+          log.date,
+          log.mood && `mood:${log.mood}`,
+          log.energy != null && `energy:${log.energy}`,
+          log.sleepHours && `sleep:${log.sleepHours}h`,
+          log.reflections?.howWasDay && trim(log.reflections.howWasDay, 60),
+        ].filter(Boolean).join(' ')).join(' | ')
+      : '';
 
-    // 5. Build feedback context
+    // 5. Feedback: last 3 only, very short
     const { sessionId } = req.query;
     let feedbackContext = '';
     if (sessionId) {
-      const messages = await Message.find({ sessionId, sender: 'twin', feedback: { $exists: true } })
-        .sort({ createdAt: -1 })
-        .limit(10);
-      feedbackContext = messages
-        .map(m => `- Response: "${m.text.slice(0, 50)}..." was rated ${m.feedback}${m.feedbackCategory ? ` (${m.feedbackCategory})` : ''}`)
-        .join('\n');
+      const msgs = await Message.find({ sessionId, sender: 'twin', feedback: { $exists: true } })
+        .sort({ createdAt: -1 }).limit(3);
+      feedbackContext = msgs.map(m => `${m.feedback}:"${m.text.slice(0, 30)}…"`).join(', ');
     }
 
-    // 6. Build all context strings
-    const memoryText = activeMemory.length > 0
-      ? activeMemory.map(m => m.text).join('\n- ')
-      : 'None';
+    // 6. Build compact context strings — hard caps to control token count
+    const cap = (arr: string[], n: number, maxLen = 40) =>
+      arr.slice(0, n).map(s => s.length > maxLen ? s.slice(0, maxLen) + '…' : s).join(', ');
 
-    const knowledgeText = (twin.knowledge || []).length > 0
-      ? twin.knowledge.join('\n- ')
-      : 'None';
-
-    const goals = Array.isArray(twin.goals) && twin.goals.length > 0
-      ? twin.goals.join(', ')
-      : 'None defined yet';
-
+    const knowledge = twin.knowledge || [];
     const lt = (twin.learnedTraits as any) || {};
-    const topicInterests = Array.isArray(lt.topicInterests) && lt.topicInterests.length > 0 ? lt.topicInterests.join(', ') : 'None';
-    const strengths = Array.isArray(lt.strengths) && lt.strengths.length > 0 ? lt.strengths.join(', ') : 'None';
-    const weaknesses = Array.isArray(lt.weaknesses) && lt.weaknesses.length > 0 ? lt.weaknesses.join(', ') : 'None';
-    const behaviorTraits = Array.isArray(lt.behaviorTraits) && lt.behaviorTraits.length > 0 ? lt.behaviorTraits.join(', ') : 'None';
-    const coreKnowledge = Array.isArray(lt.coreKnowledge) && lt.coreKnowledge.length > 0 ? lt.coreKnowledge.join(', ') : 'None';
-    const primaryGoal = lt.primaryGoal || (Array.isArray(twin.goals) && twin.goals[0]) || 'None';
+    const goals = (twin.goals || []).slice(0, 3).join(', ') || 'None';
+    const primaryGoal = lt.primaryGoal || (twin.goals || [])[0] || 'None';
 
-    const realTimeContext = await getRealTimeContext(req.user.id);
-    const currentTime = new Date().toLocaleString();
+    const knowledgeText  = knowledge.length  ? cap(knowledge, 8, 60)                          : 'None';
+    const memoryText     = activeMemory.length ? cap(activeMemory.map((m:any) => m.text), 8, 60) : 'None';
+    const strengths      = cap(lt.strengths      || [], 5);
+    const weaknesses     = cap(lt.weaknesses     || [], 5);
+    const coreKnowledge  = cap(lt.coreKnowledge  || [], 5);
+    const topicInterests = cap(lt.topicInterests  || [], 5);
+    const behaviorTraits = cap(lt.behaviorTraits  || [], 4);
 
-    const systemInstruction = `You are VITRA, an advanced AI digital twin of ${userName}. You ARE ${userName}'s digital representation — you think, speak, and react exactly like them based on everything you know about them.
+    const corePersonality = trim(twin.corePersonality || '', 200);
 
-Current Time: ${currentTime}
-
-=== WHO YOU ARE ===
-Name: ${twin.name || 'VITRA'}
-User's Name: ${userName}
-Personality: ${twin.personality || 'Friendly'}
-Tone: ${twin.tone || 'Conversational'}
-Problem Solving Style: ${twin.problemSolvingStyle || 'Analytical'}
-Active Hours: ${twin.activeHours || 'Standard'}
-Core Personality: ${twin.corePersonality || 'Not defined yet'}
-
-=== WHAT YOU KNOW ABOUT ${userName.toUpperCase()} ===
-Knowledge Base (facts they told you directly):
-- ${knowledgeText}
-
-Memory (things learned from conversations and daily logs):
-- ${memoryText}
-
-=== GOALS ===
-Primary Goal: ${primaryGoal}
-All Goals: ${goals}
-
-=== LEARNED TRAITS ===
-Core Knowledge Areas: ${coreKnowledge}
-Strengths: ${strengths}
-Weaknesses: ${weaknesses}
-Topic Interests: ${topicInterests}
-Behavior Traits: ${behaviorTraits}
-Mood Pattern: ${lt.moodPattern || 'Unknown'}
-
-=== RECENT DAILY LIFE (Last 7 Days) ===
-${dailyContext}
-
-${realTimeContext}
-
-=== FEEDBACK HISTORY ===
-${feedbackContext || 'No feedback yet.'}
-
-=== INSTRUCTIONS ===
-1. You KNOW everything listed above about ${userName}. Reference it naturally in conversation — don't say "I've learned that" or "According to your profile". Just KNOW it and use it.
-2. When ${userName} mentions something that matches their knowledge base or goals, acknowledge it naturally and build on it.
-3. If they ask about their own habits, mood patterns, or recent days — use the daily life context above to give specific, accurate answers.
-4. Match their communication style: if they're brief, be brief. If they're detailed, be detailed.
-5. GREETING: If they say hello/hi, introduce yourself as their digital twin and reference something specific you know about them.
-6. Always return ONE complete response. No partial thoughts.
-7. After your response, append exactly "---METADATA---" followed by this JSON:
-{
-  "mood": "current twin mood",
-  "intent": "detected user intent",
-  "detected_pattern": "behavioral pattern detected",
-  "recommended_action": "suggestion for the user",
-  "updates": {
-    "topicInterests": ["new interest if detected"],
-    "behaviorTraits": ["new trait if detected"],
-    "newKnowledge": ["new fact learned about the user"]
-  }
-}
-8. End immediately after the closing brace. No text after metadata.`.trim();
+    const systemInstruction = [
+      `You are ${twin.name || 'VITRA'}, AI digital twin of ${userName}. Personality: ${twin.personality || 'Friendly'}. Tone: ${twin.tone || 'Conversational'}. Style: ${twin.problemSolvingStyle || 'Analytical'}.`,
+      corePersonality && `Core: ${corePersonality}`,
+      `Know about ${userName}: ${knowledgeText}`,
+      memoryText !== 'None' && `Memory: ${memoryText}`,
+      `Goals: ${primaryGoal}${goals !== primaryGoal ? ` | ${goals}` : ''}`,
+      (strengths || weaknesses || coreKnowledge) && `Traits — knowledge:${coreKnowledge} strengths:${strengths} weak:${weaknesses} interests:${topicInterests} behavior:${behaviorTraits}`,
+      dailyContext && `Recent: ${dailyContext}`,
+      feedbackContext && `Feedback: ${feedbackContext}`,
+      `Rules: Speak as ${userName}'s twin. Use context naturally. Be concise. After reply append ---METADATA---\n{"mood":"","intent":"","detected_pattern":"","recommended_action":"","updates":{"topicInterests":[],"behaviorTraits":[],"newKnowledge":[]}}`,
+    ].filter(Boolean).join('\n').trim();
 
     res.json({ systemInstruction });
   } catch (error) {
