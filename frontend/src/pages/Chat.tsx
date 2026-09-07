@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
 import { Send, Mic, Brain, ArrowLeft, Loader2, Plus, MessageSquare, Menu, X, User, Trash2, Sparkles, ThumbsUp, ThumbsDown, Edit2, Check, MicOff, Pin, PinOff, Smile, Frown, Zap, AlertCircle, HelpCircle, Settings, ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import LoadingAnimation from "../components/LoadingAnimation";
+import TwinAvatar from "../components/TwinAvatar";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -1256,37 +1257,13 @@ export default function Chat() {
               <Menu size={20} />
             </button>
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <motion.div 
-                  animate={isTyping ? { scale: [1, 1.1, 1] } : {}}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30 overflow-hidden"
-                >
-                  {twinProfile?.avatarUrl ? (
-                    <img 
-                      key={twinProfile.avatarUrl}
-                      src={twinProfile.avatarUrl} 
-                      alt={twinProfile.name} 
-                      className="w-full h-full object-cover" 
-                      referrerPolicy="no-referrer" 
-                      onLoad={(e) => {
-                        e.currentTarget.style.display = 'block';
-                        e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.add('hidden');
-                      }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
-                      }}
-                    />
-                  ) : null}
-                  <Brain size={20} className={`text-primary fallback-icon ${twinProfile?.avatarUrl ? 'hidden' : ''}`} />
-                </motion.div>
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-secondary border-2 border-background rounded-full shadow-sm" />
-              </div>
-              <div>
-                <h1 className="font-bold text-sm md:text-base">{twinProfile?.name || "VITRA Twin"}</h1>
-                <p className="text-[10px] text-secondary font-medium uppercase tracking-wider">Online & Synced</p>
-              </div>
+              <TwinAvatar
+                avatarUrl={twinProfile?.avatarUrl}
+                twinName={twinProfile?.name}
+                isSpeaking={isSpeaking}
+                isTyping={isTyping}
+                size={52}
+              />
             </div>
           </div>
           <div className="flex items-center gap-2">

@@ -257,11 +257,8 @@ export async function analyzeUserPhoto(base64Image: string): Promise<{ personali
   }
 }
 
-export async function generateDigitalAvatar(description: string, personality?: string, tone?: string, traits?: string[]): Promise<string> {
-  // Map personality to a DiceBear seed for a consistent, unique avatar
-  const seed = encodeURIComponent(`${personality || 'default'}-${(traits || []).join('-')}`);
-  return `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
-}
+// Removed: generateDigitalAvatar — no longer generates generic cartoon avatars.
+// The captured photo is used directly as the avatar source.
 
 export async function generateChatTitle(messages: { role: string, text: string }[]): Promise<string> {
   try {

@@ -340,7 +340,7 @@ export default function Dashboard() {
   const learnedTraitCount = Object.values(learnedTraits).reduce((count: number, value: any) => {
     if (Array.isArray(value)) return count + value.length;
     return count + (value ? 1 : 0);
-  }, 0);
+  }, 0) as number;
   const dailyLogCount = memoryData?.dailyLogs?.length || 0;
   const hasLearningBase = knowledgeCount > 0 || memoryCount > 0 || learnedTraitCount > 0 || msgCount > 0 || dailyLogCount > 0;
   const isNewUser = !hasLearningBase;

@@ -1,11 +1,12 @@
 import { motion } from "motion/react";
-import { Save, User, MessageSquare, Brain, Plus, Trash2, Loader2, ArrowLeft, Camera, CameraOff, RefreshCw, Wand2, Sparkles, X, Target, Calendar as CalendarIcon, Music } from "lucide-react";
+import { Save, User, MessageSquare, Brain, Plus, Trash2, Loader2, ArrowLeft, Camera, CameraOff, RefreshCw, Wand2, Sparkles, X, Target, Calendar as CalendarIcon, Music, Upload } from "lucide-react";
 import LoadingAnimation from "../components/LoadingAnimation";
 import SimpleLoader from '../components/SimpleLoader';
+import TwinAvatar from '../components/TwinAvatar';
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { analyzeUserPhoto, generateDigitalAvatar, extractStructuredTraits } from "../services/geminiService";
+import { analyzeUserPhoto, extractStructuredTraits } from "../services/geminiService";
 import { useToast } from "../context/ToastContext";
 import { buildApiUrl } from "../constants";
 
@@ -34,6 +35,7 @@ export default function Setup() {
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
@@ -176,6 +178,24 @@ export default function Setup() {
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file (JPG, PNG, WebP, etc.)');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setCapturedPhoto(dataUrl);
+      setError(null);
+    };
+    reader.readAsDataURL(file);
+    // reset so same file can be re-selected
+    e.target.value = '';
+  };
+
   const startCamera = async () => {
     try {
       const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -209,8 +229,11 @@ export default function Setup() {
         }
         canvasRef.current.width = width;
         canvasRef.current.height = height;
+        // Mirror horizontally so saved photo matches the mirrored preview
+        context.translate(width, 0);
+        context.scale(-1, 1);
         context.drawImage(videoRef.current, 0, 0, width, height);
-        const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.9);
+        const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.92);
         setCapturedPhoto(dataUrl);
         stopCamera();
       }
@@ -263,26 +286,16 @@ export default function Setup() {
     setIsAnalyzing(true);
     setError(null);
     try {
-      // 1. Analyze photo for traits
+      // Analyze photo for personality traits only — no avatar generation
       const analysis = await analyzeUserPhoto(capturedPhoto);
       setPersonality(analysis.personality);
       setTone(analysis.tone);
-      // Filter out duplicate traits and add to knowledge
       const newTraits = analysis.traits.filter(t => !knowledge.includes(t));
       setKnowledge(prev => [...prev, ...newTraits]);
-      
-      // 2. Generate digital avatar based on analysis
-      const avatarDescription = `
-        A digital twin avatar that visually represents a ${analysis.personality} personality with a ${analysis.tone} tone. 
-        The character should have features that suggest these traits: ${analysis.traits.join(', ')}.
-        The attire, facial expression, and lighting should be carefully chosen to match this vibe.
-      `.trim();
-      
-      const generatedAvatar = await generateDigitalAvatar(avatarDescription, analysis.personality, analysis.tone, analysis.traits);
-      if (generatedAvatar) {
-        setAvatarUrl(generatedAvatar);
-      }
-      showToast("Twin profile and avatar generated from your photo!", "success");
+
+      // The captured photo IS the avatar — set it directly
+      setAvatarUrl(capturedPhoto);
+      showToast("Twin profile created from your photo!", "success");
     } catch (err) {
       console.error("Error creating twin from photo:", err);
       setError("Failed to analyze photo. Please try again.");
@@ -379,61 +392,95 @@ export default function Setup() {
           </section>
         )}
 
-        {/* AI Twin Creation from Photo */}
+        {/* Avatar / Photo Section */}
         <section className="p-8 rounded-3xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 overflow-hidden relative">
-          <div className="absolute top-0 right-0 p-8 opacity-10">
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
             <Sparkles size={120} />
           </div>
-          
-          <div className="flex items-center gap-3 mb-6 relative z-10">
+
+          <div className="flex items-center gap-3 mb-2 relative z-10">
             <Camera className="text-primary" />
-            <h2 className="text-xl font-bold">Create Twin from Photo</h2>
+            <h2 className="text-xl font-bold">Your Avatar</h2>
           </div>
-          
+          <p className="text-sm text-text/50 mb-6 relative z-10">
+            Capture a photo — it becomes your twin's face. Face tracking animates it in real time during chat.
+          </p>
+
           <div className="grid md:grid-cols-2 gap-8 relative z-10">
+            {/* Left: camera / capture controls */}
             <div className="space-y-4">
-              <p className="text-sm text-text/70">
-                Take a photo of yourself. VITRA will analyze your appearance and suggested traits to create a unique digital avatar and personality profile.
-              </p>
-              
               {!isCapturing && !capturedPhoto && (
-                <button 
-                  onClick={startCamera}
-                  className="w-full py-4 bg-primary text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all"
-                >
-                  <Camera size={20} />
-                  Start Camera
-                </button>
+                <div className="space-y-3">
+                  <button
+                    onClick={startCamera}
+                    className="w-full py-4 bg-primary text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                  >
+                    <Camera size={20} />
+                    Start Camera
+                  </button>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/10" />
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="px-3 bg-transparent text-xs text-text/30 font-medium">or</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full py-4 bg-white/5 border border-white/10 text-text/70 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/20 transition-all"
+                  >
+                    <Upload size={20} />
+                    Upload from Device
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                </div>
               )}
 
               {isCapturing && (
-                <div className="space-y-4">
-                  <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border-2 border-primary">
-                    <video 
-                      ref={videoRef} 
-                      autoPlay 
-                      playsInline 
+                <div className="space-y-3">
+                  <div className="relative rounded-2xl overflow-hidden border-2 border-primary shadow-lg shadow-primary/20 bg-black aspect-video">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
                       muted
-                      onLoadedMetadata={() => {
-                        setError(null);
-                        setIsVideoReady(true);
-                      }}
+                      onLoadedMetadata={() => { setError(null); setIsVideoReady(true); }}
                       onCanPlay={() => setIsVideoReady(true)}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover scale-x-[-1]"
                     />
+                    {/* Viewfinder overlay */}
+                    <div className="absolute inset-0 pointer-events-none">
+                      <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-primary/70 rounded-tl-lg" />
+                      <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-primary/70 rounded-tr-lg" />
+                      <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-primary/70 rounded-bl-lg" />
+                      <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-primary/70 rounded-br-lg" />
+                    </div>
+                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/60 rounded-full px-2 py-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-[9px] text-white font-bold">LIVE</span>
+                    </div>
                   </div>
                   <div className="flex gap-2">
-                    <button 
+                    <button
                       onClick={capturePhoto}
                       disabled={!isVideoReady}
-                      className="flex-1 py-4 bg-primary text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all disabled:opacity-50"
+                      className="flex-1 py-3.5 bg-primary text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
                     >
-                      <RefreshCw size={20} className={!isVideoReady ? "animate-spin" : ""} />
-                      {isVideoReady ? "Capture Photo" : "Initializing..."}
+                      {!isVideoReady
+                        ? <><RefreshCw size={18} className="animate-spin" /> Initializing...</>
+                        : <><Camera size={18} /> Capture Photo</>
+                      }
                     </button>
-                    <button 
+                    <button
                       onClick={stopCamera}
-                      className="px-6 py-4 bg-white/5 text-text/60 rounded-2xl font-bold hover:bg-white/10 transition-all"
+                      className="px-5 py-3.5 bg-white/5 text-text/60 rounded-2xl font-bold hover:bg-white/10 transition-all border border-white/10"
                     >
                       Cancel
                     </button>
@@ -442,65 +489,68 @@ export default function Setup() {
               )}
 
               {capturedPhoto && (
-                <div className="space-y-4">
-                  <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border-2 border-primary">
-                    <img 
-                      src={capturedPhoto} 
-                      alt="Captured" 
-                      className="w-full h-full object-cover"
+                <div className="space-y-3">
+                  <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500/50 shadow-lg shadow-emerald-500/10 bg-black aspect-video">
+                    <img
+                      src={capturedPhoto}
+                      alt="Your captured photo"
+                      className="w-full h-full object-cover scale-x-[-1]"
                     />
-                    <button 
-                      onClick={() => setCapturedPhoto(null)}
-                      className="absolute top-2 right-2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-all"
+                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500/80 rounded-full px-2 py-0.5">
+                      <span className="text-[9px] text-white font-bold">✓ CAPTURED</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={createFromPhoto}
+                      disabled={isAnalyzing}
+                      className="flex-1 py-3.5 bg-gradient-to-r from-primary to-secondary text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
                     >
-                      <X size={16} />
+                      {isAnalyzing
+                        ? <><SimpleLoader /> Analyzing traits...</>
+                        : <><Wand2 size={18} /> Use This Photo</>}
+                    </button>
+                    <button
+                      onClick={() => { setCapturedPhoto(null); setAvatarUrl(""); }}
+                      className="px-5 py-3.5 bg-white/5 text-text/60 rounded-2xl font-bold hover:bg-white/10 transition-all border border-white/10"
+                    >
+                      Retake
                     </button>
                   </div>
-                  <button 
-                    onClick={createFromPhoto}
-                    disabled={isAnalyzing}
-                    className="w-full py-4 bg-gradient-to-r from-primary to-secondary text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
-                  >
-                    {isAnalyzing ? <SimpleLoader /> : <Wand2 size={20} />}
-                    {isAnalyzing ? "Analyzing & Generating..." : "Generate Digital Twin"}
-                  </button>
-                </div>
-              )}
-              
-              <canvas ref={canvasRef} className="hidden" />
-            </div>
-            
-            <div className="flex items-center justify-center">
-              <div className="relative">
-                <div className="w-48 h-48 rounded-[40px] bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden relative z-10">
-                  {avatarUrl ? (
-                    <img 
-                      key={avatarUrl}
-                      src={avatarUrl} 
-                      alt="Digital Twin" 
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="text-center p-4">
-                      <User size={48} className="text-white/10 mx-auto mb-2" />
-                      <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Awaiting Sync</p>
+
+                  {avatarUrl && avatarUrl === capturedPhoto && (
+                    <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <p className="text-xs text-emerald-400 font-medium">Your photo is set as the twin avatar. Face tracking will animate it in chat.</p>
                     </div>
                   )}
                 </div>
-                {avatarUrl && (
-                  <motion.div 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -bottom-2 -right-2 bg-primary p-3 rounded-2xl shadow-xl z-20"
-                  >
-                    <Sparkles size={20} className="text-white" />
-                  </motion.div>
-                )}
-                {/* Decorative rings */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-primary/10 rounded-full animate-[spin_10s_linear_infinite]" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 border border-secondary/10 rounded-full animate-[spin_15s_linear_infinite_reverse]" />
-              </div>
+              )}
+
+              <canvas ref={canvasRef} className="hidden" />
+
+              {!capturedPhoto && !isCapturing && avatarUrl && (
+                <div className="flex items-center gap-2 p-3 bg-primary/10 border border-primary/20 rounded-xl">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                  <p className="text-xs text-primary/80 font-medium">Avatar loaded from saved profile.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Right: live TwinAvatar preview */}
+            <div className="flex flex-col items-center justify-center gap-4">
+              <p className="text-xs font-bold text-text/40 uppercase tracking-widest">Live Preview</p>
+              <TwinAvatar
+                avatarUrl={capturedPhoto || avatarUrl}
+                twinName={name || "Your Twin"}
+                size={160}
+              />
+              {!capturedPhoto && !avatarUrl && (
+                <p className="text-[11px] text-text/30 text-center max-w-[160px] leading-relaxed">
+                  Capture a photo to see your animated twin avatar here
+                </p>
+              )}
             </div>
           </div>
         </section>
