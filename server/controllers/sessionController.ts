@@ -2,10 +2,21 @@ import { Request, Response } from 'express';
 import { Session } from '../models/Session';
 import { Message } from '../models/Message';
 
+const serializeSession = (session: any) => {
+  const obj = session.toObject();
+  return {
+    ...obj,
+    id: session._id,
+    title: obj.title || 'New Conversation',
+    createdAt: obj.createdAt || obj.updatedAt || new Date(),
+    updatedAt: obj.updatedAt || obj.createdAt || new Date(),
+  };
+};
+
 export const getSessions = async (req: any, res: Response) => {
   try {
     const sessions = await Session.find({ ownerId: req.user.id }).sort({ updatedAt: -1 });
-    res.json(sessions.map(s => ({ ...s.toObject(), id: s._id })));
+    res.json(sessions.map(serializeSession));
   } catch (error) {
     console.error('Get sessions error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -18,7 +29,7 @@ export const createSession = async (req: any, res: Response) => {
       ownerId: req.user.id,
       title: req.body.title || 'New Session',
     });
-    res.status(201).json({ ...session.toObject(), id: session._id });
+    res.status(201).json(serializeSession(session));
   } catch (error) {
     console.error('Create session error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -35,7 +46,7 @@ export const updateSession = async (req: any, res: Response) => {
     if (!session) {
       return res.status(404).json({ message: 'Session not found' });
     }
-    res.json({ ...session.toObject(), id: session._id });
+    res.json(serializeSession(session));
   } catch (error) {
     console.error('Update session error:', error);
     res.status(500).json({ message: 'Server error' });

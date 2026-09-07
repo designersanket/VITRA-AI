@@ -37,6 +37,11 @@ enum OperationType {
   WRITE = 'write',
 }
 
+const toSessionDate = (value: unknown) => {
+  const date = value ? new Date(String(value)) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+};
+
 import { useToast } from "../context/ToastContext";
 import { API_BASE_URL, buildApiUrl } from "../constants";
 import { Volume2, VolumeX } from "lucide-react";
@@ -285,7 +290,7 @@ export default function Chat() {
 
     socket.on("session_updated", (updatedSession: ChatSession) => {
       setSessions(prev => prev.map(s => 
-        s.id === updatedSession.id ? { ...s, ...updatedSession, createdAt: new Date(updatedSession.createdAt) } : s
+        s.id === updatedSession.id ? { ...s, ...updatedSession, createdAt: toSessionDate(updatedSession.createdAt) } : s
       ));
     });
 
@@ -347,7 +352,8 @@ export default function Chat() {
           const data = await response.json();
           const sess = data.map((s: any) => ({
             ...s,
-            createdAt: new Date(s.createdAt)
+            title: s.title || "New Conversation",
+            createdAt: toSessionDate(s.createdAt || s.updatedAt)
           }));
           setSessions(sess);
 
@@ -506,7 +512,11 @@ export default function Chat() {
       });
       if (response.ok) {
         const newSession = await response.json();
-        setSessions(prev => [{ ...newSession, createdAt: new Date(newSession.createdAt) }, ...prev]);
+        setSessions(prev => [{
+          ...newSession,
+          title: newSession.title || "New Conversation",
+          createdAt: toSessionDate(newSession.createdAt || newSession.updatedAt)
+        }, ...prev]);
         setCurrentSessionId(newSession.id);
         setSidebarOpen(false);
       }
@@ -858,32 +868,35 @@ export default function Chat() {
       }
 
       // Common logic after AI response
-      let newTitle = sessions.find(s => s.id === currentSessionId)?.title;
-      
-      if (messages.length === 0) {
+      let currentTitle = sessions.find(s => s.id === currentSessionId)?.title ?? 'New Conversation';
+      let newTitle = currentTitle;
+
+      if (currentTitle === 'New Conversation' || currentTitle === 'New Session') {
         try {
           newTitle = await generateChatTitle([
             { role: "user", text },
             { role: "twin", text: aiText }
           ]);
-          setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: newTitle } : s));
+          if (!newTitle || !newTitle.trim()) newTitle = text.slice(0, 30) + (text.length > 30 ? "..." : "");
         } catch (e) {
           console.error("Failed to generate title:", e);
           newTitle = text.slice(0, 30) + (text.length > 30 ? "..." : "");
         }
+        setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: newTitle } : s));
       }
 
-      await fetch(buildApiUrl(`/api/sessions/${currentSessionId}`), {
+      const patchRes = await fetch(buildApiUrl(`/api/sessions/${currentSessionId}`), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("vitra_token")}`
         },
-        body: JSON.stringify({ 
-          lastMessage: text,
-          title: newTitle
-        })
+        body: JSON.stringify({ lastMessage: text, title: newTitle })
       });
+      if (patchRes.ok) {
+        const updated = await patchRes.json();
+        setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: updated.title || newTitle } : s));
+      }
 
       playSpeech(aiText, wasLastInputVoice, undefined);
       setWasLastInputVoice(false);

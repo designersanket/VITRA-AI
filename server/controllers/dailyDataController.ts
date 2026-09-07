@@ -38,7 +38,7 @@ export const createOrUpdateDailyData = async (req: any, res: Response) => {
 
 async function callGroq(prompt: string, systemPrompt: string): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
-  const model = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
+  const model = process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
   if (!apiKey) throw new Error('GROQ_API_KEY not set');
 
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {

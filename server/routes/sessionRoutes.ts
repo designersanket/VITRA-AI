@@ -8,6 +8,7 @@ const router = express.Router();
 router.get('/', protect, getSessions);
 router.post('/', protect, createSession);
 router.put('/:id', protect, updateSession);
+router.patch('/:id', protect, updateSession);
 router.delete('/:id', protect, deleteSession);
 
 // Nested message routes
