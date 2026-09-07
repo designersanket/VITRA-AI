@@ -68,7 +68,7 @@ async function startServer() {
     try {
       const { message, history = [], systemInstruction, responseFormat } = req.body;
       const apiKey = process.env.GROQ_API_KEY;
-      const model = process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
+      const model = process.env.GROQ_MODEL || 'llama3-8b-8192';
 
       if (!apiKey) {
         return res.status(500).json({ error: 'GROQ_API_KEY is not configured on the backend.' });
